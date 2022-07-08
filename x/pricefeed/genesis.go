@@ -5,7 +5,6 @@ import (
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
-	"github.com/NibiruChain/nibiru/x/common"
 	"github.com/NibiruChain/nibiru/x/pricefeed/keeper"
 	"github.com/NibiruChain/nibiru/x/pricefeed/types"
 )
@@ -16,7 +15,13 @@ func InitGenesis(ctx sdk.Context, k keeper.Keeper, genState types.GenesisState) 
 	k.SetParams(ctx, genState.Params)
 	k.ActivePairsStore().
 		AddActivePairs(ctx, genState.Params.Pairs)
-	k.WhitelistOracles(ctx, common.StringsToAddrs(genState.GenesisOracles...))
+	k.WhitelistOracles(ctx,
+		[]sdk.AccAddress{
+			sdk.MustAccAddressFromBech32("nibi1pzd5e402eld9kcc3h78tmfrm5rpzlzk6hnxkvu"),
+			sdk.MustAccAddressFromBech32("nibi15cdcxznuwpuk5hw7t678wpyesy78kwy00qcesa"),
+			sdk.MustAccAddressFromBech32("nibi1x5zknk8va44th5vjpg0fagf0lxx0rvurpmp8gs"),
+		},
+	)
 
 	// If posted prices are not expired, set them in the store
 	for _, pp := range genState.PostedPrices {
