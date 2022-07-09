@@ -15,7 +15,7 @@ func DefaultGenesis() *GenesisState {
 		FeePoolBalance: nil,
 		PairMetadata: []*PairMetadata{
 			{
-				Pair: common.PairBTCStable.String(),
+				Pair: common.PairBTCStable,
 				CumulativePremiumFractions: []sdk.Dec{
 					sdk.ZeroDec(),
 				},
