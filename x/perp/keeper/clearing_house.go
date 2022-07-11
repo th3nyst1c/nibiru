@@ -89,6 +89,11 @@ func (k Keeper) afterPositionUpdate(
 		k.PositionsState(ctx).Set(pair, traderAddr, positionResp.Position)
 	}
 
+	if !positionResp.BadDebt.IsZero() {
+		return fmt.Errorf(
+			"bad debt must be zero to prevent attacker from leveraging it")
+	}
+
 	if !isNewPosition && !positionResp.Position.Size_.IsZero() {
 		marginRatio, err := k.GetMarginRatio(
 			ctx,
@@ -101,11 +106,6 @@ func (k Keeper) afterPositionUpdate(
 		if err = requireMoreMarginRatio(marginRatio, params.MaintenanceMarginRatio, true); err != nil {
 			return err
 		}
-	}
-
-	if !positionResp.BadDebt.IsZero() {
-		return fmt.Errorf(
-			"bad debt must be zero to prevent attacker from leveraging it")
 	}
 
 	// transfer trader <=> vault
@@ -154,7 +154,7 @@ func (k Keeper) afterPositionUpdate(
 		PositionSize:          positionResp.Position.Size_,
 		RealizedPnl:           positionResp.RealizedPnl,
 		UnrealizedPnlAfter:    positionResp.UnrealizedPnlAfter,
-		BadDebt:               positionResp.BadDebt,
+		BadDebt:               sdk.NewCoin(pair.GetQuoteTokenDenom(), positionResp.BadDebt.RoundInt()),
 		LiquidationPenalty:    sdk.ZeroDec(),
 		SpotPrice:             spotPrice,
 		FundingPayment:        positionResp.FundingPayment,
