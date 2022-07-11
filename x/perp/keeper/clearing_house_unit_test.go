@@ -1847,7 +1847,6 @@ func TestClosePosition(t *testing.T) {
 					tc.baseAssetDir,
 					/*baseAssetAmount=*/ tc.initialPosition.Size_.Abs(),
 				).
-				AnyTimes().
 				Return( /*quoteAssetAmount=*/ tc.newPositionNotional, nil)
 
 			mocks.mockVpoolKeeper.EXPECT().
@@ -1929,7 +1928,7 @@ func TestClosePosition(t *testing.T) {
 				PositionSize:          sdk.ZeroDec(),
 				RealizedPnl:           tc.expectedRealizedPnl,
 				UnrealizedPnlAfter:    sdk.ZeroDec(),
-				BadDebt:               sdk.ZeroDec(),
+				BadDebt:               sdk.NewCoin(common.PairBTCStable.GetQuoteTokenDenom(), sdk.ZeroInt()),
 				LiquidationPenalty:    sdk.ZeroDec(),
 				SpotPrice:             tc.newPositionNotional.Quo(tc.initialPosition.Size_.Abs()),
 				FundingPayment:        sdk.MustNewDecFromStr("0.02").Mul(tc.initialPosition.Size_),
