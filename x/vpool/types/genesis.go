@@ -13,8 +13,8 @@ func DefaultGenesis() *GenesisState {
 		Vpools: []*Pool{
 			{
 				Pair:                  common.PairBTCStable,
-				BaseAssetReserve:      sdk.NewDec(10_000_000),          // 10 million btc
-				QuoteAssetReserve:     sdk.NewDec(10_000_000 * 20_000), // 200_000 million unusd
+				BaseAssetReserve:      sdk.NewDec(500),        // 500 btc
+				QuoteAssetReserve:     sdk.NewDec(10_000_000), // 10 million unusd
 				TradeLimitRatio:       sdk.OneDec(),
 				FluctuationLimitRatio: sdk.OneDec(),
 				MaxOracleSpreadRatio:  sdk.OneDec(),
