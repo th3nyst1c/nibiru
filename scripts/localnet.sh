@@ -126,9 +126,9 @@ else
   echo_error "Failed to enable CORS"
 fi
 
-# Update voting period to 20s
+# Update voting period params
 echo_info "Updating voting period params"
-if cat <<< $(jq '.app_state.gov.voting_params.voting_period = "20s"' $CHAIN_DIR/config/genesis.json) > $CHAIN_DIR/config/genesis.json; then
+if cat <<< $(jq '.app_state.gov.voting_params.voting_period = "10s"' $CHAIN_DIR/config/genesis.json) > $CHAIN_DIR/config/genesis.json; then
   echo_success "Successfully updated voting period params"
 else
   echo_error "Failed to update voting period params"
