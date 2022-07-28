@@ -96,6 +96,7 @@ type VpoolKeeper interface {
 	  - dir: either add or remove from pool
 	  - baseAssetAmount: the amount of quote asset being traded
 	  - quoteAmountLimit: a limiter to ensure the trader doesn't get screwed by slippage
+	  - skipFluctuationLimitCheck: whether or not to skip the fluctuation limit check
 
 	ret:
 	  - quoteAssetAmount: the amount of quote asset swapped
@@ -105,8 +106,9 @@ type VpoolKeeper interface {
 		ctx sdk.Context,
 		pair common.AssetPair,
 		dir vpooltypes.Direction,
-		abs sdk.Dec,
-		limit sdk.Dec,
+		baseAssetAmount sdk.Dec,
+		quoteAmountLimit sdk.Dec,
+		skipFluctuationLimitCheck bool,
 	) (sdk.Dec, error)
 
 	/* Trades quoteAssets in exchange for baseAssets.
@@ -119,6 +121,7 @@ type VpoolKeeper interface {
 	- dir: either add or remove from pool
 	- quoteAssetAmount: the amount of quote asset being traded
 	- baseAmountLimit: a limiter to ensure the trader doesn't get screwed by slippage
+	- skipFluctuationLimitCheck: whether or not to skip the fluctuation limit check
 
 	ret:
 	- baseAssetAmount: the amount of base asset traded from the pool
@@ -130,6 +133,7 @@ type VpoolKeeper interface {
 		dir vpooltypes.Direction,
 		quoteAssetAmount sdk.Dec,
 		baseAmountLimit sdk.Dec,
+		skipFluctuationLimitCheck bool,
 	) (sdk.Dec, error)
 
 	/* Returns the amount of quote assets required to achieve a move of baseAssetAmount in a direction,
@@ -256,6 +260,7 @@ type VpoolKeeper interface {
 	) (price sdk.Dec, err error)
 
 	IsOverSpreadLimit(ctx sdk.Context, pair common.AssetPair) bool
+	GetMaintenanceMarginRatio(ctx sdk.Context, pair common.AssetPair) sdk.Dec
 	// ExistsPool returns true if pool exists, false if not.
 	ExistsPool(ctx sdk.Context, pair common.AssetPair) bool
 	GetSettlementPrice(ctx sdk.Context, pair common.AssetPair) (sdk.Dec, error)

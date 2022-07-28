@@ -21,6 +21,23 @@ func (m MsgRemoveMargin) Route() string { return RouterKey }
 func (m MsgRemoveMargin) Type() string  { return "remove_margin_msg" }
 
 func (m MsgRemoveMargin) ValidateBasic() error {
+	if _, err := sdk.AccAddressFromBech32(m.Sender); err != nil {
+		return err
+	}
+
+	pair, err := common.NewAssetPair(m.TokenPair)
+	if err != nil {
+		return err
+	}
+
+	if !m.Margin.Amount.IsPositive() {
+		return fmt.Errorf("margin must be positive, not: %v", m.Margin.Amount.String())
+	}
+
+	if m.Margin.Denom != pair.QuoteDenom() {
+		return fmt.Errorf("invalid margin denom, expected %s, got %s", pair.QuoteDenom(), m.Margin.Denom)
+	}
+
 	return nil
 }
 
@@ -42,6 +59,23 @@ func (m MsgAddMargin) Route() string { return RouterKey }
 func (m MsgAddMargin) Type() string  { return "add_margin_msg" }
 
 func (m MsgAddMargin) ValidateBasic() error {
+	if _, err := sdk.AccAddressFromBech32(m.Sender); err != nil {
+		return err
+	}
+
+	pair, err := common.NewAssetPair(m.TokenPair)
+	if err != nil {
+		return err
+	}
+
+	if !m.Margin.Amount.IsPositive() {
+		return fmt.Errorf("margin must be positive, not: %v", m.Margin.Amount.String())
+	}
+
+	if m.Margin.Denom != pair.QuoteDenom() {
+		return fmt.Errorf("invalid margin denom, expected %s, got %s", pair.QuoteDenom(), m.Margin.Denom)
+	}
+
 	return nil
 }
 
@@ -69,13 +103,13 @@ func (msg *MsgOpenPosition) ValidateBasic() error {
 	if _, err := sdk.AccAddressFromBech32(msg.Sender); err != nil {
 		return err
 	}
-	if msg.Leverage.LTE(sdk.ZeroDec()) {
+	if !msg.Leverage.IsPositive() {
 		return fmt.Errorf("leverage must always be greater than zero")
 	}
-	if msg.BaseAssetAmountLimit.LT(sdk.ZeroInt()) {
+	if msg.BaseAssetAmountLimit.IsNegative() {
 		return fmt.Errorf("base asset amount limit must not be negative")
 	}
-	if !msg.QuoteAssetAmount.GT(sdk.ZeroInt()) {
+	if !msg.QuoteAssetAmount.IsPositive() {
 		return fmt.Errorf("quote asset amount must be always greater than zero")
 	}
 

@@ -8,6 +8,8 @@ import (
 	"os"
 	"path/filepath"
 
+	vpoolcli "github.com/NibiruChain/nibiru/x/vpool/client/cli"
+
 	pricefeedcli "github.com/NibiruChain/nibiru/x/pricefeed/client/cli"
 
 	"github.com/cosmos/cosmos-sdk/baseapp"
@@ -154,6 +156,7 @@ var (
 			upgradeclient.ProposalHandler,
 			upgradeclient.CancelProposalHandler,
 			pricefeedcli.AddOracleProposalHandler,
+			vpoolcli.CreatePoolProposalHandler,
 			// pricefeedcli.RemoveOracleProposalHandler, // TODO
 			ibcclientclient.UpdateClientProposalHandler,
 			ibcclientclient.UpgradeProposalHandler,
@@ -450,7 +453,7 @@ func NewNibiruApp(
 		appCodec, keys[epochstypes.StoreKey],
 	)
 	app.EpochsKeeper.SetHooks(
-		epochstypes.NewMultiEpochHooks(app.StablecoinKeeper.Hooks()),
+		epochstypes.NewMultiEpochHooks(app.StablecoinKeeper.Hooks(), app.PerpKeeper.Hooks()),
 	)
 
 	app.LockupKeeper = lockupkeeper.NewLockupKeeper(appCodec,
@@ -481,7 +484,8 @@ func NewNibiruApp(
 		AddRoute(distrtypes.RouterKey, distr.NewCommunityPoolSpendProposalHandler(app.DistrKeeper)).
 		AddRoute(upgradetypes.RouterKey, upgrade.NewSoftwareUpgradeProposalHandler(app.UpgradeKeeper)).
 		AddRoute(ibcclienttypes.RouterKey, ibcclient.NewClientProposalHandler(app.IBCKeeper.ClientKeeper)).
-		AddRoute(pricefeedtypes.RouterKey, pricefeed.NewPricefeedProposalHandler(app.PricefeedKeeper))
+		AddRoute(pricefeedtypes.RouterKey, pricefeed.NewPricefeedProposalHandler(app.PricefeedKeeper)).
+		AddRoute(vpooltypes.RouterKey, vpool.NewCreatePoolProposalHandler(app.VpoolKeeper))
 
 	app.TransferKeeper = ibctransferkeeper.NewKeeper(
 		appCodec,
@@ -694,6 +698,11 @@ func NewNibiruApp(
 		app.appCodec, app.MsgServiceRouter(), app.GRPCQueryRouter())
 	app.mm.RegisterServices(app.configurator)
 
+	app.UpgradeKeeper.SetUpgradeHandler("v0.10.0", func(ctx sdk.Context, plan upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
+		// no-op
+		return fromVM, nil
+	})
+
 	// add test gRPC service for testing gRPC queries in isolation
 	testdata.RegisterQueryServer(app.GRPCQueryRouter(), testdata.QueryImpl{})
 
@@ -744,7 +753,9 @@ func NewNibiruApp(
 			SignModeHandler: encodingConfig.TxConfig.SignModeHandler(),
 			SigGasConsumer:  ante.DefaultSigVerificationGasConsumer,
 		},
-		IBCKeeper: app.IBCKeeper,
+		PricefeedKeeper: &app.PricefeedKeeper,
+		PerpKeeper:      &app.PerpKeeper,
+		IBCKeeper:       app.IBCKeeper,
 	})
 
 	if err != nil {
