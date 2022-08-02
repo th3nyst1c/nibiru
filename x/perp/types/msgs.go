@@ -93,6 +93,9 @@ func (m MsgAddMargin) GetSigners() []sdk.AccAddress {
 
 // MsgOpenPosition
 
+func (m MsgOpenPosition) Route() string { return RouterKey }
+func (m MsgOpenPosition) Type() string  { return "open_position_msg" }
+
 func (msg *MsgOpenPosition) ValidateBasic() error {
 	if msg.Side != Side_SELL && msg.Side != Side_BUY {
 		return fmt.Errorf("invalid side")
@@ -157,7 +160,7 @@ func (m MsgLiquidate) GetSigners() []sdk.AccAddress {
 // MsgClosePosition
 
 func (m MsgClosePosition) Route() string { return RouterKey }
-func (m MsgClosePosition) Type() string  { return "liquidate_msg" }
+func (m MsgClosePosition) Type() string  { return "close_position_msg" }
 
 func (msg MsgClosePosition) ValidateBasic() error {
 	if _, err := sdk.AccAddressFromBech32(msg.Sender); err != nil {

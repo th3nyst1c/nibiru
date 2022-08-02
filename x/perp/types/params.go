@@ -1,11 +1,22 @@
 package types
 
 import (
-	fmt "fmt"
+	"fmt"
 	"time"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types"
+)
+
+// TODO(sahith): check key values with param declarations
+var (
+	KeyStopped                 = []byte("Stopped")
+	KeyFeePoolFeeRatio         = []byte("FeePoolFeeRatio")
+	KeyEcosystemFundFeeRatio   = []byte("EcosystemFundFeeRatio")
+	KeyLiquidationFeeRatio     = []byte("LiquidationFeeRatio")
+	KeyPartialLiquidationRatio = []byte("PartialLiquidationRatio")
+	KeyFundingRateInterval     = []byte("FundingRateInterval")
+	KeyTwapLookbackWindow      = []byte("TwapLookbackWindow")
 )
 
 var _ paramtypes.ParamSet = (*Params)(nil)
@@ -19,37 +30,37 @@ func ParamKeyTable() paramtypes.KeyTable {
 func (p *Params) ParamSetPairs() paramtypes.ParamSetPairs {
 	return paramtypes.ParamSetPairs{
 		paramtypes.NewParamSetPair(
-			[]byte("Stopped"),
+			KeyStopped,
 			&p.Stopped,
 			validateStopped,
 		),
 		paramtypes.NewParamSetPair(
-			[]byte("FeePoolFeeRatio"),
+			KeyFeePoolFeeRatio,
 			&p.FeePoolFeeRatio,
 			validatePercentageRatio,
 		),
 		paramtypes.NewParamSetPair(
-			[]byte("EcosystemFundFeeRatio"),
+			KeyEcosystemFundFeeRatio,
 			&p.EcosystemFundFeeRatio,
 			validatePercentageRatio,
 		),
 		paramtypes.NewParamSetPair(
-			[]byte("LiquidationFeeRatio"),
+			KeyLiquidationFeeRatio,
 			&p.LiquidationFeeRatio,
 			validatePercentageRatio,
 		),
 		paramtypes.NewParamSetPair(
-			[]byte("PartialLiquidationRatio"),
+			KeyPartialLiquidationRatio,
 			&p.PartialLiquidationRatio,
 			validatePercentageRatio,
 		),
 		paramtypes.NewParamSetPair(
-			[]byte("FundingRateInterval"),
+			KeyFundingRateInterval,
 			&p.FundingRateInterval,
 			validateFundingRateInterval,
 		),
 		paramtypes.NewParamSetPair(
-			[]byte("TwapLookbackWindow"),
+			KeyTwapLookbackWindow,
 			&p.TwapLookbackWindow,
 			validateTwapLookbackWindow,
 		),
@@ -81,10 +92,10 @@ func NewParams(
 func DefaultParams() Params {
 	return NewParams(
 		/* stopped */ false,
-		/* feePoolFeeRatio */ sdk.MustNewDecFromStr("0.001"), // 10 bps
-		/* ecosystemFundFeeRatio */ sdk.MustNewDecFromStr("0.001"), // 10 bps
-		/* liquidationFee */ sdk.MustNewDecFromStr("0.025"), // 250 bps
-		/* partialLiquidationRatio */ sdk.MustNewDecFromStr("0.25"),
+		/* feePoolFeeRatio */ sdk.NewDecWithPrec(1, 3), // 10 bps
+		/* ecosystemFundFeeRatio */ sdk.NewDecWithPrec(1, 3), // 10 bps
+		/* liquidationFee */ sdk.NewDecWithPrec(25, 3), // 250 bps
+		/* partialLiquidationRatio */ sdk.NewDecWithPrec(25, 2),
 		/* epochIdentifier */ "30 min",
 		/* twapLookbackWindow */ 15*time.Minute,
 	)
@@ -122,9 +133,9 @@ func validatePercentageRatio(i interface{}) error {
 	}
 
 	if ratio.GT(sdk.OneDec()) {
-		return fmt.Errorf("Ratio is above max value(1.00): %s", ratio.String())
+		return fmt.Errorf("ratio is above max value(1.00): %s", ratio.String())
 	} else if ratio.IsNegative() {
-		return fmt.Errorf("Ratio is negative: %s", ratio.String())
+		return fmt.Errorf("ratio is negative: %s", ratio.String())
 	}
 
 	return nil
