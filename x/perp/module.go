@@ -4,7 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math/rand"
 
+	simtypes "github.com/cosmos/cosmos-sdk/types/simulation"
+	"github.com/cosmos/cosmos-sdk/x/simulation"
 	"github.com/gorilla/mux"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/spf13/cobra"
@@ -18,13 +21,20 @@ import (
 
 	"github.com/NibiruChain/nibiru/x/perp/client/cli"
 	"github.com/NibiruChain/nibiru/x/perp/keeper"
+	perpsimulation "github.com/NibiruChain/nibiru/x/perp/simulation"
 	"github.com/NibiruChain/nibiru/x/perp/types"
 )
 
 // type check to ensure the interface is properly implemented
 var (
-	_ module.AppModule      = AppModule{}
-	_ module.AppModuleBasic = AppModuleBasic{}
+	_ module.AppModule           = AppModule{}
+	_ module.AppModuleBasic      = AppModuleBasic{}
+	_ module.AppModuleSimulation = AppModule{}
+)
+
+const (
+	// TODO(neal): Determine the simulation weight value
+	defaultWeight int = 100
 )
 
 // ----------------------------------------------------------------------------
@@ -189,4 +199,30 @@ func (am AppModule) BeginBlock(_ sdk.Context, _ abci.RequestBeginBlock) {}
 func (am AppModule) EndBlock(ctx sdk.Context, _ abci.RequestEndBlock) []abci.ValidatorUpdate {
 	// EndBlocker(ctx, am.keeper)
 	return []abci.ValidatorUpdate{}
+}
+
+func (am AppModule) GenerateGenesisState(simState *module.SimulationState) {
+	perpsimulation.RandomizedGenState(simState)
+}
+
+func (am AppModule) ProposalContents(simState module.SimulationState) []simtypes.WeightedProposalContent {
+	return nil
+}
+
+func (am AppModule) RandomizedParams(r *rand.Rand) []simtypes.ParamChange {
+	return perpsimulation.RandomizedParams(r)
+}
+
+func (am AppModule) RegisterStoreDecoder(registry sdk.StoreDecoderRegistry) {
+	//TODO(sahith): implement me
+}
+
+func (am AppModule) WeightedOperations(simState module.SimulationState) []simtypes.WeightedOperation {
+	operations := make([]simtypes.WeightedOperation, 0)
+	operations = append(operations, simulation.NewWeightedOperation(
+		defaultWeight,
+		perpsimulation.SimulateMsgAddPosition(am.ak, am.bk, am.keeper),
+	),
+	)
+	return operations
 }
