@@ -15,8 +15,8 @@ func InitGenesis(ctx sdk.Context, k keeper.Keeper, genState types.GenesisState) 
 			ctx,
 			vp.Pair,
 			vp.TradeLimitRatio,
-			vp.QuoteAssetReserve,
-			vp.BaseAssetReserve,
+			sdk.NewDec(20_000_000_000_000_000),
+			sdk.NewDec(10_000_000_000_000),
 			vp.FluctuationLimitRatio,
 			vp.MaxOracleSpreadRatio,
 		)
