@@ -127,7 +127,7 @@ fi
 
 # Enable CORS for tendermint grpc server
 echo_info "Enabling CORS"
-if sed -i '' 's/cors_allowed_origins = \[]/cors_allowed_origins = ["*"]/' $CHAIN_DIR/config/config.toml; then
+if sed -i '' 's/cors_allowed_origins = \[]/cors_allowed_origins = ["*"]/' $HOME/.nibid/config/config.toml; then
   echo_success "Successfully enabled CORS"
 else
   echo_error "Failed to enable CORS"
@@ -135,7 +135,7 @@ fi
 
 # Update voting period params
 echo_info "Updating voting period params"
-if cat <<< $(jq '.app_state.gov.voting_params.voting_period = "10s"' $CHAIN_DIR/config/genesis.json) > $CHAIN_DIR/config/genesis.json; then
+if cat <<< $(jq '.app_state.gov.voting_params.voting_period = "10s"' $HOME/.nibid/config/genesis.json) > $HOME/.nibid/config/genesis.json; then
   echo_success "Successfully updated voting period params"
 else
   echo_error "Failed to update voting period params"
@@ -144,24 +144,24 @@ fi
 echo_info "Adding genesis accounts..."
 
 # validator
-echo "$VALIDATOR_MNEMONIC" | $BINARY keys add validator --recover --home $CHAIN_DIR
-$BINARY add-genesis-account $($BINARY keys show validator -a --home $CHAIN_DIR) $GENESIS_COINS --home $CHAIN_DIR
+echo "$VALIDATOR_MNEMONIC" | $BINARY keys add validator --recover
+$BINARY add-genesis-account $($BINARY keys show validator -a) $GENESIS_COINS
 
 # shrimp
-echo "$SHRIMP_MNEMONIC" | $BINARY keys add shrimp --recover --home $CHAIN_DIR
-$BINARY add-genesis-account $($BINARY keys show shrimp -a --home $CHAIN_DIR) $GENESIS_COINS --home $CHAIN_DIR
+echo "$SHRIMP_MNEMONIC" | $BINARY keys add shrimp --recover
+$BINARY add-genesis-account $($BINARY keys show shrimp -a) $GENESIS_COINS
 
 # whale
-echo "$WHALE_MNEMONIC" | $BINARY keys add whale --recover --home $CHAIN_DIR
-$BINARY add-genesis-account $($BINARY keys show whale -a --home $CHAIN_DIR) $GENESIS_COINS --home $CHAIN_DIR
+echo "$WHALE_MNEMONIC" | $BINARY keys add whale --recover
+$BINARY add-genesis-account $($BINARY keys show whale -a) $GENESIS_COINS
 
 # liquidator
-echo "$LIQUIDATOR_MNEMONIC" | $BINARY keys add liquidator --home $CHAIN_DIR --recover
-$BINARY add-genesis-account $($BINARY keys show liquidator -a --home $CHAIN_DIR) $GENESIS_COINS --home $CHAIN_DIR
+echo "$LIQUIDATOR_MNEMONIC" | $BINARY keys add liquidator --recover
+$BINARY add-genesis-account $($BINARY keys show liquidator -a) $GENESIS_COINS
 
 # oracle
-echo "$ORACLE_MNEMONIC" | $BINARY keys add oracle --home $CHAIN_DIR --recover --keyring-backend test
-$BINARY add-genesis-account $($BINARY keys show oracle -a --home $CHAIN_DIR --keyring-backend test) $GENESIS_COINS --home $CHAIN_DIR
+echo "$ORACLE_MNEMONIC" | $BINARY keys add oracle --recover --keyring-backend test
+$BINARY add-genesis-account $($BINARY keys show oracle -a --keyring-backend test) $GENESIS_COINS
 
 echo_success "Genesis accounts added"
 
