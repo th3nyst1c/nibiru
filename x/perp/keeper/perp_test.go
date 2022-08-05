@@ -52,7 +52,7 @@ func TestGetAndSetPosition(t *testing.T) {
 					Size_:         sdk.OneDec(),
 					Margin:        sdk.OneDec(),
 				}
-				nibiruApp.PerpKeeper.PositionsState(ctx).Set(vpoolPair, traderAddr, dummyPosition)
+				nibiruApp.PerpKeeper.PositionsState(ctx).Set(dummyPosition)
 				outPosition, err := nibiruApp.PerpKeeper.PositionsState(ctx).Get(vpoolPair, traderAddr)
 				require.NoError(t, err)
 				require.EqualValues(t, dummyPosition, outPosition)
@@ -98,7 +98,7 @@ func TestDeletePosition(t *testing.T) {
 						Size_:         sdk.OneDec(),
 						Margin:        sdk.OneDec(),
 					}
-					nibiruApp.PerpKeeper.PositionsState(ctx).Set(vpoolPair, traderAddr, dummyPosition)
+					nibiruApp.PerpKeeper.PositionsState(ctx).Set(dummyPosition)
 					outPosition, err := nibiruApp.PerpKeeper.PositionsState(ctx).Get(vpoolPair, traderAddr)
 					require.NoError(t, err)
 					require.EqualValues(t, dummyPosition, outPosition)
@@ -160,8 +160,10 @@ func TestKeeperClosePosition(t *testing.T) {
 			/*baseAssetReserve*/ sdk.NewDec(5_000_000),
 			/*fluctuationLimitRatio*/ sdk.MustNewDecFromStr("0.1"),
 			/*maxOracleSpreadRatio*/ sdk.MustNewDecFromStr("0.1"),
+			/* maintenanceMarginRatio */ sdk.MustNewDecFromStr("0.0625"),
 		)
 		require.True(t, vpoolKeeper.ExistsPool(ctx, pair))
+		nibiruApp.PricefeedKeeper.ActivePairsStore().Set(ctx, pair, true)
 
 		t.Log("Set vpool defined by pair on PerpKeeper")
 		perpKeeper := &nibiruApp.PerpKeeper
@@ -174,6 +176,7 @@ func TestKeeperClosePosition(t *testing.T) {
 		)
 
 		t.Log("open position for alice - long")
+		ctx = ctx.WithBlockHeight(ctx.BlockHeight() + 1).WithBlockTime(time.Now().Add(time.Minute))
 
 		alice := sample.AccAddress()
 		err := simapp.FundAccount(nibiruApp.BankKeeper, ctx, alice,
@@ -184,9 +187,8 @@ func TestKeeperClosePosition(t *testing.T) {
 		aliceQuote := sdk.NewInt(60)
 		aliceLeverage := sdk.NewDec(10)
 		aliceBaseLimit := sdk.NewDec(150)
-		err = nibiruApp.PerpKeeper.OpenPosition(
+		_, err = nibiruApp.PerpKeeper.OpenPosition(
 			ctx, pair, aliceSide, alice, aliceQuote, aliceLeverage, aliceBaseLimit)
-
 		require.NoError(t, err)
 
 		t.Log("open position for bob - long")
@@ -205,9 +207,9 @@ func TestKeeperClosePosition(t *testing.T) {
 		bobQuote := sdk.NewInt(60)
 		bobLeverage := sdk.NewDec(10)
 		bobBaseLimit := sdk.NewDec(150)
-		err = nibiruApp.PerpKeeper.OpenPosition(
-			ctx, pair, bobSide, bob, bobQuote, bobLeverage, bobBaseLimit)
 
+		_, err = nibiruApp.PerpKeeper.OpenPosition(
+			ctx, pair, bobSide, bob, bobQuote, bobLeverage, bobBaseLimit)
 		require.NoError(t, err)
 
 		t.Log("testing close position")
@@ -226,8 +228,7 @@ func TestKeeperClosePosition(t *testing.T) {
 		// this tests the following issue https://github.com/NibiruChain/nibiru/issues/645
 		// in which opening a position from the same address on the same pair
 		// was not possible after calling close position, due to bad data clearance.
-
-		err = nibiruApp.PerpKeeper.OpenPosition(ctx, pair, aliceSide, alice, aliceQuote, aliceLeverage, aliceBaseLimit)
+		_, err = nibiruApp.PerpKeeper.OpenPosition(ctx, pair, aliceSide, alice, aliceQuote, aliceLeverage, aliceBaseLimit)
 		require.NoError(t, err)
 	})
 }

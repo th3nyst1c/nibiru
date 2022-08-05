@@ -8,8 +8,6 @@ import (
 	"os"
 	"path/filepath"
 
-	pricefeedcli "github.com/NibiruChain/nibiru/x/pricefeed/client/cli"
-
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/client"
 	_ "github.com/cosmos/cosmos-sdk/client/docs/statik"
@@ -117,12 +115,14 @@ import (
 	perpkeeper "github.com/NibiruChain/nibiru/x/perp/keeper"
 	perptypes "github.com/NibiruChain/nibiru/x/perp/types"
 	"github.com/NibiruChain/nibiru/x/pricefeed"
+	pricefeedcli "github.com/NibiruChain/nibiru/x/pricefeed/client/cli"
 	pricefeedkeeper "github.com/NibiruChain/nibiru/x/pricefeed/keeper"
 	pricefeedtypes "github.com/NibiruChain/nibiru/x/pricefeed/types"
 	"github.com/NibiruChain/nibiru/x/stablecoin"
 	stablecoinkeeper "github.com/NibiruChain/nibiru/x/stablecoin/keeper"
 	stablecointypes "github.com/NibiruChain/nibiru/x/stablecoin/types"
 	"github.com/NibiruChain/nibiru/x/vpool"
+	vpoolcli "github.com/NibiruChain/nibiru/x/vpool/client/cli"
 	vpoolkeeper "github.com/NibiruChain/nibiru/x/vpool/keeper"
 	vpooltypes "github.com/NibiruChain/nibiru/x/vpool/types"
 )
@@ -131,6 +131,8 @@ const (
 	AccountAddressPrefix = "nibi"
 	Name                 = "nibiru"
 	AppName              = "Nibiru"
+	BondDenom            = "unibi"
+	DisplayDenom         = "NIBI"
 )
 
 var (
@@ -143,23 +145,24 @@ var (
 	ModuleBasics = module.NewBasicManager(
 		auth.AppModuleBasic{},
 		genutil.AppModuleBasic{},
-		bank.AppModuleBasic{},
+		BankModule{},
 		capability.AppModuleBasic{},
-		staking.AppModuleBasic{},
-		mint.AppModuleBasic{},
+		StakingModule{},
+		MintModule{},
 		distr.AppModuleBasic{},
-		gov.NewAppModuleBasic(
+		NewGovModuleBasic(
 			paramsclient.ProposalHandler,
 			distrclient.ProposalHandler,
 			upgradeclient.ProposalHandler,
 			upgradeclient.CancelProposalHandler,
 			pricefeedcli.AddOracleProposalHandler,
+			vpoolcli.CreatePoolProposalHandler,
 			// pricefeedcli.RemoveOracleProposalHandler, // TODO
 			ibcclientclient.UpdateClientProposalHandler,
 			ibcclientclient.UpgradeProposalHandler,
 		),
 		params.AppModuleBasic{},
-		crisis.AppModuleBasic{},
+		CrisisModule{},
 		slashing.AppModuleBasic{},
 		feegrantmodule.AppModuleBasic{},
 		authzmodule.AppModuleBasic{},
@@ -440,17 +443,18 @@ func NewNibiruApp(
 		app.PricefeedKeeper,
 	)
 
+	app.EpochsKeeper = epochskeeper.NewKeeper(
+		appCodec, keys[epochstypes.StoreKey],
+	)
+
 	app.PerpKeeper = perpkeeper.NewKeeper(
 		appCodec, keys[perptypes.StoreKey],
 		app.GetSubspace(perptypes.ModuleName),
 		app.AccountKeeper, app.BankKeeper, app.PricefeedKeeper, app.VpoolKeeper, app.EpochsKeeper,
 	)
 
-	app.EpochsKeeper = epochskeeper.NewKeeper(
-		appCodec, keys[epochstypes.StoreKey],
-	)
 	app.EpochsKeeper.SetHooks(
-		epochstypes.NewMultiEpochHooks(app.StablecoinKeeper.Hooks()),
+		epochstypes.NewMultiEpochHooks(app.StablecoinKeeper.Hooks(), app.PerpKeeper.Hooks()),
 	)
 
 	app.LockupKeeper = lockupkeeper.NewLockupKeeper(appCodec,
@@ -481,7 +485,8 @@ func NewNibiruApp(
 		AddRoute(distrtypes.RouterKey, distr.NewCommunityPoolSpendProposalHandler(app.DistrKeeper)).
 		AddRoute(upgradetypes.RouterKey, upgrade.NewSoftwareUpgradeProposalHandler(app.UpgradeKeeper)).
 		AddRoute(ibcclienttypes.RouterKey, ibcclient.NewClientProposalHandler(app.IBCKeeper.ClientKeeper)).
-		AddRoute(pricefeedtypes.RouterKey, pricefeed.NewPricefeedProposalHandler(app.PricefeedKeeper))
+		AddRoute(pricefeedtypes.RouterKey, pricefeed.NewPricefeedProposalHandler(app.PricefeedKeeper)).
+		AddRoute(vpooltypes.RouterKey, vpool.NewCreatePoolProposalHandler(app.VpoolKeeper))
 
 	app.TransferKeeper = ibctransferkeeper.NewKeeper(
 		appCodec,
@@ -693,6 +698,11 @@ func NewNibiruApp(
 	app.configurator = module.NewConfigurator(
 		app.appCodec, app.MsgServiceRouter(), app.GRPCQueryRouter())
 	app.mm.RegisterServices(app.configurator)
+
+	app.UpgradeKeeper.SetUpgradeHandler("v0.10.0", func(ctx sdk.Context, plan upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
+		// no-op
+		return fromVM, nil
+	})
 
 	// add test gRPC service for testing gRPC queries in isolation
 	testdata.RegisterQueryServer(app.GRPCQueryRouter(), testdata.QueryImpl{})

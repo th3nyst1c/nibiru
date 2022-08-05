@@ -118,6 +118,7 @@ func TestSwapQuoteAssetForBase(t *testing.T) {
 						vpooltypes.Direction_ADD_TO_POOL,
 						/*quoteAmount=*/ sdk.NewDec(10),
 						/*baseLimit=*/ sdk.NewDec(1),
+						/* skipFluctuationLimitCheck */ false,
 					).Return(sdk.NewDec(5), nil)
 			},
 			side:               types.Side_BUY,
@@ -133,6 +134,7 @@ func TestSwapQuoteAssetForBase(t *testing.T) {
 						vpooltypes.Direction_REMOVE_FROM_POOL,
 						/*quoteAmount=*/ sdk.NewDec(10),
 						/*baseLimit=*/ sdk.NewDec(1),
+						/* skipFluctuationLimitCheck */ false,
 					).Return(sdk.NewDec(5), nil)
 			},
 			side:               types.Side_SELL,
@@ -193,6 +195,7 @@ func TestIncreasePosition(t *testing.T) {
 						/*quoteAssetDirection=*/ vpooltypes.Direction_ADD_TO_POOL,
 						/*quoteAssetAmount=*/ sdk.NewDec(100),
 						/*baseAssetLimit=*/ sdk.NewDec(50),
+						/* skipFluctuationLimitCheck */ false,
 					).Return( /*baseAssetAmount=*/ sdk.NewDec(50), nil)
 
 				mocks.mockVpoolKeeper.EXPECT().
@@ -269,6 +272,7 @@ func TestIncreasePosition(t *testing.T) {
 						/*quoteAssetDirection=*/ vpooltypes.Direction_ADD_TO_POOL,
 						/*quoteAssetAmount=*/ sdk.NewDec(100),
 						/*baseAssetLimit=*/ sdk.NewDec(101),
+						/* skipFluctuationLimitCheck */ false,
 					).Return( /*baseAssetAmount=*/ sdk.NewDec(101), nil)
 
 				mocks.mockVpoolKeeper.EXPECT().
@@ -346,6 +350,7 @@ func TestIncreasePosition(t *testing.T) {
 						/*quoteAssetDirection=*/ vpooltypes.Direction_ADD_TO_POOL,
 						/*quoteAssetAmount=*/ sdk.NewDec(100),
 						/*baseAssetLimit=*/ sdk.NewDec(110),
+						/* skipFluctuationLimitCheck */ false,
 					).Return( /*baseAssetAmount=*/ sdk.NewDec(110), nil)
 
 				mocks.mockVpoolKeeper.EXPECT().
@@ -421,6 +426,7 @@ func TestIncreasePosition(t *testing.T) {
 						/*quoteAssetDirection=*/ vpooltypes.Direction_REMOVE_FROM_POOL,
 						/*quoteAssetAmount=*/ sdk.NewDec(100),
 						/*baseAssetLimit=*/ sdk.NewDec(200),
+						/* skipFluctuationLimitCheck */ false,
 					).Return( /*baseAssetAmount=*/ sdk.NewDec(200), nil)
 
 				mocks.mockVpoolKeeper.EXPECT().
@@ -496,6 +502,7 @@ func TestIncreasePosition(t *testing.T) {
 						/*quoteAssetDirection=*/ vpooltypes.Direction_REMOVE_FROM_POOL,
 						/*quoteAssetAmount=*/ sdk.NewDec(100),
 						/*baseAssetLimit=*/ sdk.NewDec(99),
+						/* skipFluctuationLimitCheck */ false,
 					).Return( /*baseAssetAmount=*/ sdk.NewDec(99), nil)
 
 				mocks.mockVpoolKeeper.EXPECT().
@@ -574,6 +581,7 @@ func TestIncreasePosition(t *testing.T) {
 						/*quoteAssetDirection=*/ vpooltypes.Direction_REMOVE_FROM_POOL,
 						/*quoteAssetAmount=*/ sdk.NewDec(105),
 						/*baseAssetLimit=*/ sdk.NewDec(100),
+						/* skipFluctuationLimitCheck */ false,
 					).Return( /*baseAssetAmount=*/ sdk.NewDec(100), nil)
 
 				mocks.mockVpoolKeeper.EXPECT().
@@ -846,12 +854,7 @@ func TestClosePositionEntirely(t *testing.T) {
 			perpKeeper, mocks, ctx := getKeeper(t)
 
 			t.Log("set up initial position")
-			trader, err := sdk.AccAddressFromBech32(tc.initialPosition.TraderAddress)
-			require.NoError(t, err)
-
 			perpKeeper.PositionsState(ctx).Set(
-				tc.initialPosition.Pair,
-				trader,
 				&tc.initialPosition,
 			)
 
@@ -872,6 +875,7 @@ func TestClosePositionEntirely(t *testing.T) {
 					/*quoteAssetDirection=*/ tc.direction,
 					/*baseAssetAmount=*/ tc.initialPosition.Size_.Abs(),
 					/*quoteAssetLimit=*/ tc.quoteAssetLimit,
+					/* skipFluctuationLimitCheck */ false,
 				).Return( /*quoteAssetAmount=*/ tc.newPositionNotional, nil)
 
 			t.Log("set up pair metadata and last cumulative premium fraction")
@@ -882,6 +886,7 @@ func TestClosePositionEntirely(t *testing.T) {
 				ctx,
 				tc.initialPosition,
 				/*quoteAssetLimit=*/ tc.quoteAssetLimit, // NUSD
+				/* skipFluctuationLimitCheck */ false,
 			)
 
 			require.NoError(t, err)
@@ -1166,6 +1171,7 @@ func TestDecreasePosition(t *testing.T) {
 					/*quoteAssetDirection=*/ tc.quoteAssetDir,
 					/*quoteAssetAmount=*/ tc.quoteAmountToDecrease,
 					/*baseAssetLimit=*/ tc.exchangedBaseAmount.Abs(),
+					/* skipFluctuationLimitCheck */ false,
 				).Return( /*baseAssetAmount=*/ tc.baseAssetLimit, nil)
 
 			t.Log("set up pair metadata and last cumulative premium fraction")
@@ -1183,7 +1189,7 @@ func TestDecreasePosition(t *testing.T) {
 				tc.initialPosition,
 				/*openNotional=*/ tc.quoteAmountToDecrease, // NUSD
 				/*baseLimit=*/ tc.baseAssetLimit, // BTC
-				/*canOverFluctuationLimit=*/ false,
+				/*skipFluctuationLimitCheck=*/ false,
 			)
 
 			require.NoError(t, err)
@@ -1549,8 +1555,6 @@ func TestCloseAndOpenReversePosition(t *testing.T) {
 				BlockNumber:                         0,
 			}
 			perpKeeper.PositionsState(ctx).Set(
-				common.PairBTCStable,
-				traderAddr,
 				&currentPosition,
 			)
 
@@ -1571,6 +1575,7 @@ func TestCloseAndOpenReversePosition(t *testing.T) {
 					tc.mockBaseDir,
 					/*baseAssetAmount=*/ currentPosition.Size_.Abs(),
 					/*quoteAssetLimit=*/ sdk.ZeroDec(),
+					/* skipFluctuationLimitCheck */ false,
 				).Return( /*quoteAssetAmount=*/ tc.mockQuoteAmount, nil)
 
 			if tc.expectedErr == nil {
@@ -1581,6 +1586,7 @@ func TestCloseAndOpenReversePosition(t *testing.T) {
 						/*quoteAssetDirection=*/ tc.mockQuoteDir,
 						/*quoteAssetAmount=*/ tc.inputQuoteAmount.Mul(tc.inputLeverage).Sub(tc.mockQuoteAmount),
 						/*baseAssetLimit=*/ sdk.MaxDec(tc.inputBaseAssetLimit.Sub(currentPosition.Size_.Abs()), sdk.ZeroDec()),
+						/* skipFluctuationLimitCheck */ false,
 					).Return( /*baseAssetAmount=*/ tc.mockBaseAmount, nil)
 			}
 
@@ -1651,11 +1657,11 @@ func TestTransferFee(t *testing.T) {
 			var wantError error = nil
 			mocks.mockBankKeeper.EXPECT().SendCoinsFromAccountToModule(
 				ctx, trader, types.FeePoolModuleAccount,
-				sdk.NewCoins(sdk.NewInt64Coin(pair.GetQuoteTokenDenom(), 5)),
+				sdk.NewCoins(sdk.NewInt64Coin(pair.QuoteDenom(), 5)),
 			).Return(wantError)
 			mocks.mockBankKeeper.EXPECT().SendCoinsFromAccountToModule(
 				ctx, trader, types.PerpEFModuleAccount,
-				sdk.NewCoins(sdk.NewInt64Coin(pair.GetQuoteTokenDenom(), 5)),
+				sdk.NewCoins(sdk.NewInt64Coin(pair.QuoteDenom(), 5)),
 			).Return(wantError)
 
 			_, err := k.transferFee(
@@ -1669,14 +1675,14 @@ func TestTransferFee(t *testing.T) {
 
 			mocks.mockBankKeeper.EXPECT().SendCoinsFromAccountToModule(
 				ctx, trader, types.FeePoolModuleAccount,
-				sdk.NewCoins(sdk.NewInt64Coin(pair.GetQuoteTokenDenom(), 5)),
+				sdk.NewCoins(sdk.NewInt64Coin(pair.QuoteDenom(), 5)),
 			).Return(nil)
 
 			expectedError := fmt.Errorf(
 				"trader missing funds for %s", types.PerpEFModuleAccount)
 			mocks.mockBankKeeper.EXPECT().SendCoinsFromAccountToModule(
 				ctx, trader, types.PerpEFModuleAccount,
-				sdk.NewCoins(sdk.NewInt64Coin(pair.GetQuoteTokenDenom(), 5))).
+				sdk.NewCoins(sdk.NewInt64Coin(pair.QuoteDenom(), 5))).
 				Return(expectedError)
 			_, err := k.transferFee(
 				ctx, pair, trader, positionNotional)
@@ -1693,7 +1699,7 @@ func TestTransferFee(t *testing.T) {
 				ctx,
 				/* from */ trader,
 				/* to */ types.FeePoolModuleAccount,
-				sdk.NewCoins(sdk.NewInt64Coin(pair.GetQuoteTokenDenom(), 5)),
+				sdk.NewCoins(sdk.NewInt64Coin(pair.QuoteDenom(), 5)),
 			).Return(expectedError)
 
 			_, err := k.transferFee(
@@ -1831,7 +1837,7 @@ func TestClosePosition(t *testing.T) {
 			require.NoError(t, err)
 
 			t.Log("set position")
-			perpKeeper.PositionsState(ctx).Set(tc.initialPosition.Pair, traderAddr, &tc.initialPosition)
+			perpKeeper.PositionsState(ctx).Set(&tc.initialPosition)
 
 			t.Log("set params")
 			params := types.DefaultParams()
@@ -1856,6 +1862,7 @@ func TestClosePosition(t *testing.T) {
 					/*baseAssetDirection=*/ tc.baseAssetDir,
 					/*baseAssetAmount=*/ tc.initialPosition.Size_.Abs(),
 					/*quoteAssetLimit=*/ sdk.ZeroDec(),
+					/* skipFluctuationLimitCheck */ false,
 				).Return( /*quoteAssetAmount=*/ tc.newPositionNotional, nil)
 
 			mocks.mockVpoolKeeper.EXPECT().
@@ -1868,20 +1875,20 @@ func TestClosePosition(t *testing.T) {
 			)
 
 			t.Log("mock bank keeper")
-			t.Logf("expecting sending: %s", sdk.NewCoin(tc.initialPosition.Pair.GetQuoteTokenDenom(), tc.expectedMarginToVault.RoundInt().Abs()))
+			t.Logf("expecting sending: %s", sdk.NewCoin(tc.initialPosition.Pair.QuoteDenom(), tc.expectedMarginToVault.RoundInt().Abs()))
 			mocks.mockBankKeeper.EXPECT().SendCoinsFromModuleToAccount(
 				ctx,
 				types.VaultModuleAccount,
 				traderAddr,
 				sdk.NewCoins(
 					sdk.NewCoin(
-						/* NUSD */ tc.initialPosition.Pair.GetQuoteTokenDenom(),
+						/* NUSD */ tc.initialPosition.Pair.QuoteDenom(),
 						tc.expectedMarginToVault.RoundInt().Abs(),
 					),
 				),
 			).Return(nil)
 
-			mocks.mockBankKeeper.EXPECT().GetBalance(ctx, sdk.AccAddress{0x1, 0x2, 0x3}, tc.initialPosition.Pair.GetQuoteTokenDenom()).
+			mocks.mockBankKeeper.EXPECT().GetBalance(ctx, sdk.AccAddress{0x1, 0x2, 0x3}, tc.initialPosition.Pair.QuoteDenom()).
 				Return(sdk.NewCoin("NUSD", sdk.NewInt(100000000000)))
 			mocks.mockAccountKeeper.EXPECT().GetModuleAddress(types.VaultModuleAccount).
 				Return(sdk.AccAddress{0x1, 0x2, 0x3})
@@ -1922,17 +1929,17 @@ func TestClosePosition(t *testing.T) {
 			testutilevents.RequireHasTypedEvent(t, ctx, &types.PositionChangedEvent{
 				Pair:                  tc.initialPosition.Pair.String(),
 				TraderAddress:         tc.initialPosition.TraderAddress,
-				Margin:                sdk.NewInt64Coin(tc.initialPosition.Pair.GetQuoteTokenDenom(), 0),
+				Margin:                sdk.NewInt64Coin(tc.initialPosition.Pair.QuoteDenom(), 0),
 				PositionNotional:      sdk.ZeroDec(),
 				ExchangedPositionSize: tc.initialPosition.Size_.Neg(),
 				PositionSize:          sdk.ZeroDec(),
 				RealizedPnl:           tc.expectedRealizedPnl,
 				UnrealizedPnlAfter:    sdk.ZeroDec(),
-				BadDebt:               sdk.NewCoin(common.PairBTCStable.GetQuoteTokenDenom(), sdk.ZeroInt()),
+				BadDebt:               sdk.NewCoin(common.PairBTCStable.QuoteDenom(), sdk.ZeroInt()),
 				LiquidationPenalty:    sdk.ZeroDec(),
 				SpotPrice:             tc.newPositionNotional.Quo(tc.initialPosition.Size_.Abs()),
 				FundingPayment:        sdk.MustNewDecFromStr("0.02").Mul(tc.initialPosition.Size_),
-				TransactionFee:        sdk.NewInt64Coin(tc.initialPosition.Pair.GetQuoteTokenDenom(), 0),
+				TransactionFee:        sdk.NewInt64Coin(tc.initialPosition.Pair.QuoteDenom(), 0),
 				BlockHeight:           ctx.BlockHeight(),
 				BlockTimeMs:           ctx.BlockTime().UnixMilli(),
 			})
@@ -1998,7 +2005,7 @@ func TestClosePositionWithBadDebt(t *testing.T) {
 			require.NoError(t, err)
 
 			t.Log("set position")
-			perpKeeper.PositionsState(ctx).Set(tc.initialPosition.Pair, traderAddr, &tc.initialPosition)
+			perpKeeper.PositionsState(ctx).Set(&tc.initialPosition)
 
 			t.Log("set params")
 			perpKeeper.SetParams(ctx, types.DefaultParams())
@@ -2021,6 +2028,7 @@ func TestClosePositionWithBadDebt(t *testing.T) {
 					/*baseAssetDirection=*/ tc.baseAssetDir,
 					/*baseAssetAmount=*/ tc.initialPosition.Size_.Abs(),
 					/*quoteAssetLimit=*/ sdk.ZeroDec(),
+					/* skipFluctuationLimitCheck */ false,
 				).Return( /*quoteAssetAmount=*/ tc.newPositionNotional, nil)
 
 			t.Log("set up pair metadata and last cumulative premium fraction")

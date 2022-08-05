@@ -2,6 +2,7 @@ package keeper_test
 
 import (
 	"testing"
+	"time"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/assert"
@@ -36,8 +37,9 @@ func TestQueryPosition(t *testing.T) {
 				BlockNumber:                         1,
 				LastUpdateCumulativePremiumFraction: sdk.ZeroDec(),
 			},
-			quoteAssetReserve:        sdk.NewDec(1_000_000),
-			baseAssetReserve:         sdk.NewDec(500_000),
+			quoteAssetReserve: sdk.NewDec(1_000_000),
+			baseAssetReserve:  sdk.NewDec(500_000),
+
 			expectedPositionNotional: sdk.MustNewDecFromStr("19.999600007999840003"),
 			expectedUnrealizedPnl:    sdk.MustNewDecFromStr("9.999600007999840003"),
 			expectedMarginRatio:      sdk.MustNewDecFromStr("0.549991"),
@@ -52,8 +54,9 @@ func TestQueryPosition(t *testing.T) {
 				BlockNumber:                         1,
 				LastUpdateCumulativePremiumFraction: sdk.ZeroDec(),
 			},
-			quoteAssetReserve:        sdk.NewDec(1_000_000),
-			baseAssetReserve:         sdk.NewDec(1_000_000),
+			quoteAssetReserve: sdk.NewDec(1_000_000),
+			baseAssetReserve:  sdk.NewDec(1_000_000),
+
 			expectedPositionNotional: sdk.MustNewDecFromStr("9.99990000099999"),
 			expectedUnrealizedPnl:    sdk.MustNewDecFromStr("-0.00009999900001"),
 			expectedMarginRatio:      sdk.MustNewDecFromStr("0.099991"),
@@ -68,8 +71,9 @@ func TestQueryPosition(t *testing.T) {
 				BlockNumber:                         1,
 				LastUpdateCumulativePremiumFraction: sdk.ZeroDec(),
 			},
-			quoteAssetReserve:        sdk.NewDec(500_000),
-			baseAssetReserve:         sdk.NewDec(1_000_000),
+			quoteAssetReserve: sdk.NewDec(500_000),
+			baseAssetReserve:  sdk.NewDec(1_000_000),
+
 			expectedPositionNotional: sdk.MustNewDecFromStr("4.999950000499995"),
 			expectedUnrealizedPnl:    sdk.MustNewDecFromStr("-5.000049999500005"),
 			expectedMarginRatio:      sdk.MustNewDecFromStr("-0.800018"),
@@ -98,6 +102,7 @@ func TestQueryPosition(t *testing.T) {
 				/* baseReserve */ tc.baseAssetReserve,
 				/* fluctuationLimitRatio */ sdk.OneDec(),
 				/* maxOracleSpreadRatio */ sdk.OneDec(),
+				/* maintenanceMarginRatio */ sdk.MustNewDecFromStr("0.0625"),
 			)
 			perpKeeper.PairMetadataState(ctx).Set(&types.PairMetadata{
 				Pair: common.PairBTCStable,
@@ -107,9 +112,10 @@ func TestQueryPosition(t *testing.T) {
 			})
 
 			t.Log("initialize position")
-			perpKeeper.PositionsState(ctx).Set(common.PairBTCStable, traderAddr, tc.initialPosition)
+			perpKeeper.PositionsState(ctx).Set(tc.initialPosition)
 
 			t.Log("query position")
+			ctx = ctx.WithBlockTime(ctx.BlockTime().Add(time.Second))
 			resp, err := queryServer.TraderPosition(
 				sdk.WrapSDKContext(ctx),
 				&types.QueryTraderPositionRequest{

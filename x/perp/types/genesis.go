@@ -10,9 +10,9 @@ import (
 func DefaultGenesis() *GenesisState {
 	return &GenesisState{
 		Params:         DefaultParams(),
-		VaultBalance:   nil,
-		PerpEfBalance:  nil,
-		FeePoolBalance: nil,
+		VaultBalance:   []sdk.Coin(nil),
+		PerpEfBalance:  []sdk.Coin(nil),
+		FeePoolBalance: []sdk.Coin(nil),
 		PairMetadata: []*PairMetadata{
 			{
 				Pair: common.PairBTCStable,
@@ -21,9 +21,9 @@ func DefaultGenesis() *GenesisState {
 				},
 			},
 		},
-		Positions:            nil,
-		PrepaidBadDebts:      nil,
-		WhitelistedAddresses: nil,
+		Positions:            []*Position(nil),
+		PrepaidBadDebts:      []*PrepaidBadDebt(nil),
+		WhitelistedAddresses: []string(nil),
 	}
 }
 

@@ -18,6 +18,7 @@ func (k Keeper) CreatePool(
 	baseAssetReserve sdk.Dec,
 	fluctuationLimitRatio sdk.Dec,
 	maxOracleSpreadRatio sdk.Dec,
+	maintenanceMarginRatio sdk.Dec,
 ) {
 	pool := types.NewPool(
 		pair,
@@ -26,10 +27,11 @@ func (k Keeper) CreatePool(
 		baseAssetReserve,
 		fluctuationLimitRatio,
 		maxOracleSpreadRatio,
+		maintenanceMarginRatio,
 	)
 
 	k.savePool(ctx, pool)
-	k.saveSnapshot(ctx, pair, 0, pool.QuoteAssetReserve, pool.BaseAssetReserve, ctx.BlockTime(), ctx.BlockHeight())
+	k.saveSnapshot(ctx, pair, 0, pool.QuoteAssetReserve, pool.BaseAssetReserve)
 	k.saveSnapshotCounter(ctx, pair, 0)
 }
 
@@ -61,12 +63,12 @@ Saves an updated pool to state and snapshots it.
 args:
   - ctx: cosmos-sdk context
   - updatedPool: pool object to save to state
-  - skipFluctuationCheck: override fluctuation check from last snapshot
+  - skipFluctuationCheck: determines if a fluctuation check should be done against the last snapshot
 
 ret:
   - err: error
 */
-func (k Keeper) savePoolAndSnapshot(
+func (k Keeper) updatePool(
 	ctx sdk.Context,
 	updatedPool *types.Pool,
 	skipFluctuationCheck bool,
@@ -78,7 +80,7 @@ func (k Keeper) savePoolAndSnapshot(
 		}
 	}
 
-	if err = k.addReserveSnapshot(
+	if err = k.updateSnapshot(
 		ctx,
 		updatedPool.Pair,
 		updatedPool.QuoteAssetReserve,

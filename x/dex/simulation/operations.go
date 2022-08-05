@@ -13,7 +13,7 @@ import (
 	"github.com/NibiruChain/nibiru/x/common"
 	"github.com/NibiruChain/nibiru/x/dex/keeper"
 	"github.com/NibiruChain/nibiru/x/dex/types"
-	simulation "github.com/NibiruChain/nibiru/x/simulation"
+	"github.com/NibiruChain/nibiru/x/simulation"
 )
 
 // SimulateMsgCreateBalancerPool generates a MsgCreatePool with random values.
@@ -22,15 +22,12 @@ func SimulateMsgCreatePool(ak types.AccountKeeper, bk types.BankKeeper, k keeper
 		r *rand.Rand, app *baseapp.BaseApp, ctx sdk.Context, accs []simtypes.Account, chainID string,
 	) (simtypes.OperationMsg, []simtypes.FutureOperation, error) {
 		simAccount, _ := simtypes.RandomAcc(r, accs)
+		fundAccountWithTokens(ctx, simAccount.Address, bk)
+
 		simCoins := bk.SpendableCoins(ctx, simAccount.Address)
 
 		msg := &types.MsgCreatePool{
 			Creator: simAccount.Address.String(),
-		}
-
-		if simCoins.Len() <= 1 {
-			fundAccountWithTokens(ctx, simAccount.Address, bk)
-			simCoins = bk.SpendableCoins(ctx, simAccount.Address)
 		}
 
 		whitelistedAssets := k.GetParams(ctx).GetWhitelistedAssetsAsMap()
@@ -51,7 +48,6 @@ func SimulateMsgCreatePool(ak types.AccountKeeper, bk types.BankKeeper, k keeper
 
 		msg.PoolParams = &poolParams
 		msg.PoolAssets = poolAssets
-
 		spentCoins := PoolAssetsCoins(poolAssets)
 
 		txGen := simapp.MakeTestEncodingConfig().TxConfig
@@ -97,16 +93,31 @@ func SimulateMsgSwap(ak types.AccountKeeper, bk types.BankKeeper, k keeper.Keepe
 		frequencyFactor := simtypes.RandomDecAmount(r, sdk.MustNewDecFromStr("1"))
 
 		intensity := intensityFactor.Mul(sdk.NewDecFromInt(balanceIn)).TruncateInt()
-
+		tokenIn := sdk.NewCoin(denomIn, intensity)
 		if frequencyFactor.GTE(sdk.MustNewDecFromStr("0.33")) {
 			return simtypes.NoOpMsg(
 				types.ModuleName, msg.Type(), "No swap done"), nil, nil
 		}
 
+		// check if there are enough tokens to swap
+		pool, err := k.FetchPool(ctx, poolIdSwap)
+		if err != nil {
+			panic(err)
+		}
+		tokensOut, err := pool.CalcOutAmtGivenIn(tokenIn, denomOut)
+		if err != nil {
+			panic(err)
+		}
+
+		// this is necessary, as invalid tokens will be considered as wrong inputs in simulations
+		if !tokensOut.IsValid() {
+			return simtypes.NoOpMsg(
+				types.ModuleName, msg.Type(), "not enough input tokens to swap"), nil, nil
+		}
 		msg = &types.MsgSwapAssets{
 			Sender:        simAccount.Address.String(),
 			PoolId:        poolIdSwap,
-			TokenIn:       sdk.NewCoin(denomIn, intensity),
+			TokenIn:       tokenIn,
 			TokenOutDenom: denomOut,
 		}
 
@@ -230,6 +241,22 @@ func SimulateExitPool(ak types.AccountKeeper, bk types.BankKeeper, k keeper.Keep
 		// Ugly but does the job
 		poolId := uint64(sdk.MustNewDecFromStr(strings.Replace(tokenOut.Denom, "nibiru/pool/", "", 1)).TruncateInt().Int64())
 
+		// check if there are enough tokens to withdraw
+		pool, err := k.FetchPool(ctx, poolId)
+		if err != nil {
+			panic(err)
+		}
+		tokensOut, err := pool.TokensOutFromPoolSharesIn(tokenOut.Amount)
+		if err != nil {
+			panic(err)
+		}
+
+		// this is necessary, as invalid tokens will be considered as wrong inputs in simulations
+		if !tokensOut.IsValid() {
+			return simtypes.NoOpMsg(
+				types.ModuleName, msg.Type(), "not enough pool tokens to exit pool"), nil, nil
+		}
+
 		msg = &types.MsgExitPool{
 			Sender:     simAccount.Address.String(),
 			PoolId:     poolId,
@@ -281,7 +308,8 @@ func genPoolAssets(
 	r *rand.Rand,
 	acct simtypes.Account,
 	coins sdk.Coins,
-	whitelistedAssets map[string]bool) []types.PoolAsset {
+	whitelistedAssets map[string]bool,
+) []types.PoolAsset {
 	denomIndices := r.Perm(coins.Len())
 	assets := []types.PoolAsset{}
 
