@@ -183,8 +183,8 @@ echo_info "Configuring genesis params"
 # x/vpool
 # BTC:NUSD
 cat $HOME/.nibid/config/genesis.json | jq '.app_state.vpool.vpools[0].pair = {token0:"ubtc",token1:"unusd"}' > $HOME/.nibid/config/tmp_genesis.json && mv $HOME/.nibid/config/tmp_genesis.json $HOME/.nibid/config/genesis.json
-cat $HOME/.nibid/config/genesis.json | jq '.app_state.vpool.vpools[0].base_asset_reserve = "50000000000"' > $HOME/.nibid/config/tmp_genesis.json && mv $HOME/.nibid/config/tmp_genesis.json $HOME/.nibid/config/genesis.json # 50k BTC
-cat $HOME/.nibid/config/genesis.json | jq '.app_state.vpool.vpools[0].quote_asset_reserve = "1000000000000000"' > $HOME/.nibid/config/tmp_genesis.json && mv $HOME/.nibid/config/tmp_genesis.json $HOME/.nibid/config/genesis.json # 1 billion NUSD
+cat $HOME/.nibid/config/genesis.json | jq '.app_state.vpool.vpools[0].base_asset_reserve = "10000000000"' > $HOME/.nibid/config/tmp_genesis.json && mv $HOME/.nibid/config/tmp_genesis.json $HOME/.nibid/config/genesis.json # 50k BTC
+cat $HOME/.nibid/config/genesis.json | jq '.app_state.vpool.vpools[0].quote_asset_reserve = "200000000000000"' > $HOME/.nibid/config/tmp_genesis.json && mv $HOME/.nibid/config/tmp_genesis.json $HOME/.nibid/config/genesis.json # 1 billion NUSD
 cat $HOME/.nibid/config/genesis.json | jq '.app_state.vpool.vpools[0].trade_limit_ratio = "0.1"' > $HOME/.nibid/config/tmp_genesis.json && mv $HOME/.nibid/config/tmp_genesis.json $HOME/.nibid/config/genesis.json
 cat $HOME/.nibid/config/genesis.json | jq '.app_state.vpool.vpools[0].fluctuation_limit_ratio = "0.1"' > $HOME/.nibid/config/tmp_genesis.json && mv $HOME/.nibid/config/tmp_genesis.json $HOME/.nibid/config/genesis.json
 cat $HOME/.nibid/config/genesis.json | jq '.app_state.vpool.vpools[0].max_oracle_spread_ratio = "0.1"' > $HOME/.nibid/config/tmp_genesis.json && mv $HOME/.nibid/config/tmp_genesis.json $HOME/.nibid/config/genesis.json
@@ -215,7 +215,11 @@ cat $HOME/.nibid/config/genesis.json | jq '.app_state.pricefeed.params.pairs[1] 
 cat $HOME/.nibid/config/genesis.json | jq '.app_state.pricefeed.params.pairs[2] = {token0:"ubtc",token1:"unusd"}' > $HOME/.nibid/config/tmp_genesis.json && mv $HOME/.nibid/config/tmp_genesis.json $HOME/.nibid/config/genesis.json
 cat $HOME/.nibid/config/genesis.json | jq '.app_state.pricefeed.params.pairs[3] = {token0:"ueth",token1:"unusd"}' > $HOME/.nibid/config/tmp_genesis.json && mv $HOME/.nibid/config/tmp_genesis.json $HOME/.nibid/config/genesis.json
 cat $HOME/.nibid/config/genesis.json | jq '.app_state.pricefeed.params.twap_lookback_window = "900s"' > $HOME/.nibid/config/tmp_genesis.json && mv $HOME/.nibid/config/tmp_genesis.json $HOME/.nibid/config/genesis.json
-cat $HOME/.nibid/config/genesis.json | jq '.app_state.pricefeed.genesis_oracles = ["nibi1zaavvzxez0elundtn32qnk9lkm8kmcsz44g7xl"]' > $HOME/.nibid/config/tmp_genesis.json && mv $HOME/.nibid/config/tmp_genesis.json $HOME/.nibid/config/genesis.json
+cat $HOME/.nibid/config/genesis.json | jq '.app_state.pricefeed.genesis_oracles = ["nibi1zaavvzxez0elundtn32qnk9lkm8kmcsz44g7xl", "nibi1pzd5e402eld9kcc3h78tmfrm5rpzlzk6hnxkvu"]' > $HOME/.nibid/config/tmp_genesis.json && mv $HOME/.nibid/config/tmp_genesis.json $HOME/.nibid/config/genesis.json
+cat $HOME/.nibid/config/genesis.json | jq '.app_state.pricefeed.posted_prices[0].pair_id = "ubtc:unusd"' > $HOME/.nibid/config/tmp_genesis.json && mv $HOME/.nibid/config/tmp_genesis.json $HOME/.nibid/config/genesis.json
+cat $HOME/.nibid/config/genesis.json | jq '.app_state.pricefeed.posted_prices[0].oracle = "nibi1pzd5e402eld9kcc3h78tmfrm5rpzlzk6hnxkvu"' > $HOME/.nibid/config/tmp_genesis.json && mv $HOME/.nibid/config/tmp_genesis.json $HOME/.nibid/config/genesis.json
+cat $HOME/.nibid/config/genesis.json | jq '.app_state.pricefeed.posted_prices[0].price = "20000"' > $HOME/.nibid/config/tmp_genesis.json && mv $HOME/.nibid/config/tmp_genesis.json $HOME/.nibid/config/genesis.json
+cat $HOME/.nibid/config/genesis.json | jq '.app_state.pricefeed.posted_prices[0].expiry = "2123-08-08T14:48:13.591905Z"' > $HOME/.nibid/config/tmp_genesis.json && mv $HOME/.nibid/config/tmp_genesis.json $HOME/.nibid/config/genesis.json
 # x/stablecoin
 cat $HOME/.nibid/config/genesis.json | jq '.app_state.stablecoin.params.coll_ratio = "1000000"' > $HOME/.nibid/config/tmp_genesis.json && mv $HOME/.nibid/config/tmp_genesis.json $HOME/.nibid/config/genesis.json
 cat $HOME/.nibid/config/genesis.json | jq '.app_state.stablecoin.params.fee_ratio = "2000"' > $HOME/.nibid/config/tmp_genesis.json && mv $HOME/.nibid/config/tmp_genesis.json $HOME/.nibid/config/genesis.json
