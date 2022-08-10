@@ -46,7 +46,7 @@ ORACLE_MNEMONIC="abandon wave reason april rival valid saddle cargo aspect toe t
 GENESIS_COINS=10000000000000000000unibi,10000000000000000000unusd
 
 # Stop nibid if it is already running
-if pgrep -x "$BINARY" >/dev/null; then
+if pgrep -x "$BINARY" > /dev/null; then
   echo_error "Terminating $BINARY..."
   killall nibid
 fi
@@ -131,14 +131,6 @@ if sed -i '' 's/cors_allowed_origins = \[]/cors_allowed_origins = ["*"]/' $HOME/
   echo_success "Successfully enabled CORS"
 else
   echo_error "Failed to enable CORS"
-fi
-
-# Update voting period params
-echo_info "Updating voting period params"
-if cat <<< $(jq '.app_state.gov.voting_params.voting_period = "10s"' $HOME/.nibid/config/genesis.json) > $HOME/.nibid/config/genesis.json; then
-  echo_success "Successfully updated voting period params"
-else
-  echo_error "Failed to update voting period params"
 fi
 
 echo_info "Adding genesis accounts..."
@@ -234,6 +226,10 @@ cat $HOME/.nibid/config/genesis.json | jq '.app_state.stablecoin.params.is_colla
 cat $HOME/.nibid/config/genesis.json | jq '.app_state.dex.params.starting_pool_number = "1"' > $HOME/.nibid/config/tmp_genesis.json && mv $HOME/.nibid/config/tmp_genesis.json $HOME/.nibid/config/genesis.json
 cat $HOME/.nibid/config/genesis.json | jq '.app_state.dex.params.pool_creation_fee[0] = {denom:"unibi",amount:"1000000000"}' > $HOME/.nibid/config/tmp_genesis.json && mv $HOME/.nibid/config/tmp_genesis.json $HOME/.nibid/config/genesis.json
 cat $HOME/.nibid/config/genesis.json | jq '.app_state.dex.params.whitelisted_asset = ["uusdc","unibi","unusd"]' > $HOME/.nibid/config/tmp_genesis.json && mv $HOME/.nibid/config/tmp_genesis.json $HOME/.nibid/config/genesis.json
+
+# gov module
+# Update voting period params
+cat $HOME/.nibid/config/genesis.json | jq '.app_state.gov.voting_params.voting_period = "10s"' > $HOME/.nibid/config/tmp_genesis.json && mv $HOME/.nibid/config/tmp_genesis.json $HOME/.nibid/config/genesis.json
 
 # Start the network
 echo_info "Starting $CHAIN_ID in $HOME/.nibid..."
