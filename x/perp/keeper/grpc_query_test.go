@@ -103,6 +103,7 @@ func TestQueryPosition(t *testing.T) {
 				/* fluctuationLimitRatio */ sdk.OneDec(),
 				/* maxOracleSpreadRatio */ sdk.OneDec(),
 				/* maintenanceMarginRatio */ sdk.MustNewDecFromStr("0.0625"),
+				/* maxLeverage */ sdk.MustNewDecFromStr("15"),
 			)
 			perpKeeper.PairMetadataState(ctx).Set(&types.PairMetadata{
 				Pair: common.PairBTCStable,
@@ -116,7 +117,7 @@ func TestQueryPosition(t *testing.T) {
 
 			t.Log("query position")
 			ctx = ctx.WithBlockTime(ctx.BlockTime().Add(time.Second))
-			resp, err := queryServer.TraderPosition(
+			resp, err := queryServer.QueryTraderPosition(
 				sdk.WrapSDKContext(ctx),
 				&types.QueryTraderPositionRequest{
 					Trader:    traderAddr.String(),
@@ -130,7 +131,9 @@ func TestQueryPosition(t *testing.T) {
 
 			assert.Equal(t, tc.expectedPositionNotional, resp.PositionNotional)
 			assert.Equal(t, tc.expectedUnrealizedPnl, resp.UnrealizedPnl)
-			assert.Equal(t, tc.expectedMarginRatio, resp.MarginRatio)
+			assert.Equal(t, tc.expectedMarginRatio, resp.MarginRatioMark)
+			// assert.Equal(t, tc.expectedMarginRatioIndex, resp.MarginRatioIndex)
+			// TODO https://github.com/NibiruChain/nibiru/issues/809
 		})
 	}
 }
