@@ -15,17 +15,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
-	tmcfg "github.com/tendermint/tendermint/config"
-	tmflags "github.com/tendermint/tendermint/libs/cli/flags"
-	"github.com/tendermint/tendermint/libs/log"
-	tmrand "github.com/tendermint/tendermint/libs/rand"
-	"github.com/tendermint/tendermint/node"
-	tmclient "github.com/tendermint/tendermint/rpc/client"
-	dbm "github.com/tendermint/tm-db"
-	"google.golang.org/grpc"
-
-	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/tx"
 	"github.com/cosmos/cosmos-sdk/codec"
@@ -37,15 +26,25 @@ import (
 	"github.com/cosmos/cosmos-sdk/server/api"
 	srvconfig "github.com/cosmos/cosmos-sdk/server/config"
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
-	"github.com/cosmos/cosmos-sdk/simapp"
-	"github.com/cosmos/cosmos-sdk/simapp/params"
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
-	"github.com/cosmos/cosmos-sdk/testutil"
+	sdktestutil "github.com/cosmos/cosmos-sdk/testutil"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/cosmos/cosmos-sdk/x/genutil"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
+	"github.com/stretchr/testify/require"
+	tmcfg "github.com/tendermint/tendermint/config"
+	tmflags "github.com/tendermint/tendermint/libs/cli/flags"
+	"github.com/tendermint/tendermint/libs/log"
+	tmrand "github.com/tendermint/tendermint/libs/rand"
+	"github.com/tendermint/tendermint/node"
+	tmclient "github.com/tendermint/tendermint/rpc/client"
+	"google.golang.org/grpc"
+
+	"github.com/NibiruChain/nibiru/app"
+	"github.com/NibiruChain/nibiru/x/common"
+	"github.com/NibiruChain/nibiru/x/testutil/testapp"
 )
 
 // package-wide network lock to only allow one test network at a time
@@ -54,19 +53,6 @@ var lock = new(sync.Mutex)
 // AppConstructor defines a function which accepts a network configuration and
 // creates an ABCI Application to provide to Tendermint.
 type AppConstructor = func(val Validator) servertypes.Application
-
-// NewAppConstructor returns a new simapp AppConstructor
-func NewAppConstructor(encodingCfg params.EncodingConfig) AppConstructor {
-	return func(val Validator) servertypes.Application {
-		return simapp.NewSimApp(
-			val.Ctx.Logger, dbm.NewMemDB(), nil, true, make(map[int64]bool), val.Ctx.Config.RootDir, 0,
-			encodingCfg,
-			simapp.EmptyAppOptions{},
-			baseapp.SetPruning(storetypes.NewPruningOptionsFromString(val.AppConfig.Pruning)),
-			baseapp.SetMinGasPrices(val.AppConfig.MinGasPrices),
-		)
-	}
-}
 
 // Config defines the necessary configuration used to bootstrap and start an
 // in-process local testing network.
@@ -94,34 +80,6 @@ type Config struct {
 	CleanupDir       bool                       // remove base temporary directory during cleanup
 	SigningAlgo      string                     // signing algorithm for keys
 	KeyringOptions   []keyring.Option
-}
-
-// DefaultConfig returns a sane default configuration suitable for nearly all
-// testing requirements.
-func DefaultConfig() Config {
-	encCfg := simapp.MakeTestEncodingConfig()
-
-	return Config{
-		Codec:             encCfg.Marshaler,
-		TxConfig:          encCfg.TxConfig,
-		LegacyAmino:       encCfg.Amino,
-		InterfaceRegistry: encCfg.InterfaceRegistry,
-		AccountRetriever:  authtypes.AccountRetriever{},
-		AppConstructor:    NewAppConstructor(encCfg),
-		GenesisState:      simapp.ModuleBasics.DefaultGenesis(encCfg.Marshaler),
-		TimeoutCommit:     2 * time.Second,
-		ChainID:           "chain-" + tmrand.NewRand().Str(6),
-		NumValidators:     4,
-		BondDenom:         sdk.DefaultBondDenom,
-		MinGasPrices:      fmt.Sprintf("0.000006%s", sdk.DefaultBondDenom),
-		AccountTokens:     sdk.TokensFromConsensusPower(1000, sdk.DefaultPowerReduction),
-		StakingTokens:     sdk.TokensFromConsensusPower(500, sdk.DefaultPowerReduction),
-		BondedTokens:      sdk.TokensFromConsensusPower(200, sdk.DefaultPowerReduction),
-		PruningStrategy:   storetypes.PruningOptionNothing,
-		CleanupDir:        true,
-		SigningAlgo:       string(hd.Secp256k1Type),
-		KeyringOptions:    []keyring.Option{},
-	}
 }
 
 type (
@@ -168,8 +126,42 @@ type (
 	}
 )
 
+// BuildNetworkConfig returns a configuration for a local in-testing network
+func BuildNetworkConfig(appGenesis app.GenesisState) Config {
+	encCfg := app.MakeTestEncodingConfig()
+
+	return Config{
+		Codec:             encCfg.Marshaler,
+		TxConfig:          encCfg.TxConfig,
+		LegacyAmino:       encCfg.Amino,
+		InterfaceRegistry: encCfg.InterfaceRegistry,
+		AccountRetriever:  authtypes.AccountRetriever{},
+		AppConstructor: func(val Validator) servertypes.Application {
+			return testapp.NewNibiruAppWithGenesis(appGenesis)
+		},
+		GenesisState:  appGenesis,
+		TimeoutCommit: time.Second / 2,
+		ChainID:       "chain-" + tmrand.NewRand().Str(6),
+		NumValidators: 1,
+		BondDenom:     common.DenomGov,
+		MinGasPrices:  fmt.Sprintf("0.000006%s", common.DenomGov),
+		AccountTokens: sdk.TokensFromConsensusPower(1000, sdk.DefaultPowerReduction),
+		StakingTokens: sdk.TokensFromConsensusPower(500, sdk.DefaultPowerReduction),
+		BondedTokens:  sdk.TokensFromConsensusPower(100, sdk.DefaultPowerReduction),
+		StartingTokens: sdk.NewCoins(
+			sdk.NewCoin(common.DenomStable, sdk.TokensFromConsensusPower(100, sdk.DefaultPowerReduction)),
+			sdk.NewCoin(common.DenomGov, sdk.TokensFromConsensusPower(1000, sdk.DefaultPowerReduction)),
+			sdk.NewCoin(common.DenomColl, sdk.TokensFromConsensusPower(100, sdk.DefaultPowerReduction)),
+		),
+		PruningStrategy: storetypes.PruningOptionNothing,
+		CleanupDir:      true,
+		SigningAlgo:     string(hd.Secp256k1Type),
+		KeyringOptions:  []keyring.Option{},
+	}
+}
+
 // New creates a new Network for integration tests.
-func New(t *testing.T, cfg Config) *Network {
+func NewNetwork(t *testing.T, cfg Config) *Network {
 	// only one caller/test can create and use a network at a time
 	t.Log("acquiring test network lock")
 	lock.Lock()
@@ -290,7 +282,7 @@ func New(t *testing.T, cfg Config) *Network {
 			mnemonic = cfg.Mnemonics[i]
 		}
 
-		addr, secret, err := testutil.GenerateSaveCoinKey(kb, nodeDirName, mnemonic, true, algo)
+		addr, secret, err := sdktestutil.GenerateSaveCoinKey(kb, nodeDirName, mnemonic, true, algo)
 		require.NoError(t, err)
 
 		info := map[string]string{"secret": secret}
@@ -375,8 +367,8 @@ func New(t *testing.T, cfg Config) *Network {
 			ValAddress: sdk.ValAddress(addr),
 		}
 	}
-
-	require.NoError(t, initGenFiles(cfg, genAccounts, genBalances, genFiles))
+	cfg, err = initGenFiles(cfg, genAccounts, genBalances, genFiles)
+	require.NoError(t, err)
 	require.NoError(t, collectGenFiles(cfg, network.Validators, network.BaseDir))
 
 	t.Log("starting test network...")
@@ -461,6 +453,35 @@ func (n *Network) WaitForNextBlock() error {
 	return err
 }
 
+// WaitForDuration waits for at least the duration provided in blockchain time.
+func (n *Network) WaitForDuration(duration time.Duration) error {
+	if len(n.Validators) == 0 {
+		return fmt.Errorf("no validators")
+	}
+	val := n.Validators[0]
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	lastBlock, err := val.RPCClient.Block(ctx, nil)
+	if err != nil {
+		return err
+	}
+
+	waitAtLeastUntil := lastBlock.Block.Time.Add(duration)
+
+	for {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		block, err := val.RPCClient.Block(ctx, nil)
+		if err != nil {
+			return err
+		}
+		if block.Block.Time.After(waitAtLeastUntil) {
+			return nil
+		}
+	}
+}
+
 // Cleanup removes the root testing (temporary) directory and stops both the
 // Tendermint and API services. It allows other callers to create and start
 // test networks. This method must be called when a test is finished, typically
@@ -495,9 +516,4 @@ func (n *Network) Cleanup() {
 	}
 
 	n.T.Log("finished cleaning up test network")
-}
-
-// UpdateStartingToken allows to update the starting tokens of an existing
-func (cfg *Config) UpdateStartingToken(startingTokens sdk.Coins) {
-	cfg.StartingTokens = startingTokens
 }

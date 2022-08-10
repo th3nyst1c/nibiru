@@ -22,25 +22,31 @@ var (
 	PoolKey                    = []byte{0x00}
 	PoolReserveSnapshotCounter = []byte{0x01}
 	PoolReserveSnapshots       = []byte{0x02}
+	TWAPPrefix                 = []byte{0x03}
 )
 
 // GetPoolKey returns pool key for KVStore
-func GetPoolKey(pair common.TokenPair) []byte {
-	return append(PoolKey, []byte(pair)...)
+func GetPoolKey(pair common.AssetPair) []byte {
+	return append(PoolKey, []byte(pair.String())...)
 }
 
 // GetSnapshotCounterKey returns the KVStore for the Snapshot Pool counters.
-func GetSnapshotCounterKey(pair common.TokenPair) []byte {
-	return append(PoolReserveSnapshotCounter, []byte(pair)...)
+func GetSnapshotCounterKey(pair common.AssetPair) []byte {
+	return append(PoolReserveSnapshotCounter, []byte(pair.String())...)
 }
 
 // GetSnapshotKey returns the KVStore for the pool reserve snapshots.
-func GetSnapshotKey(pair common.TokenPair, counter uint64) []byte {
+func GetSnapshotKey(pair common.AssetPair, counter uint64) []byte {
 	return append(
 		PoolReserveSnapshots,
 		append(
-			[]byte(pair),
+			[]byte(pair.String()),
 			sdk.Uint64ToBigEndian(counter)...,
 		)...,
 	)
+}
+
+// CurrentTWAPKey returns the prefix for the current TWAP price
+func CurrentTWAPKey(twapPairID string) []byte {
+	return append(TWAPPrefix, []byte(twapPairID)...)
 }

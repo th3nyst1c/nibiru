@@ -15,9 +15,8 @@ import (
 func TestSettlePosition(t *testing.T) {
 	t.Run("success - settlement price zero", func(t *testing.T) {
 		k, dep, ctx := getKeeper(t)
-		addr := sample.AccAddress()
-		pair, err := common.NewTokenPairFromStr("LUNA:UST")
-		require.NoError(t, err)
+		traderAddr := sample.AccAddress()
+		pair := common.MustNewAssetPair("LUNA:UST")
 
 		dep.mockVpoolKeeper.
 			EXPECT().
@@ -26,34 +25,33 @@ func TestSettlePosition(t *testing.T) {
 
 		dep.mockBankKeeper.EXPECT().
 			SendCoinsFromModuleToAccount(
-				ctx, types.VaultModuleAccount, addr,
+				ctx, types.VaultModuleAccount, traderAddr,
 				sdk.NewCoins(sdk.NewCoin("UST", sdk.NewInt(100))),
 			).
 			Return(error(nil))
 
 		pos := types.Position{
-			Address:      addr.String(),
-			Pair:         pair.String(),
-			Size_:        sdk.NewDec(10),
-			Margin:       sdk.NewDec(100),
-			OpenNotional: sdk.NewDec(1000),
+			TraderAddress: traderAddr.String(),
+			Pair:          pair,
+			Size_:         sdk.NewDec(10),
+			Margin:        sdk.NewDec(100),
+			OpenNotional:  sdk.NewDec(1000),
 		}
-		err = k.Positions().Create(ctx, &pos)
+		err := k.PositionsState(ctx).Create(&pos)
 		require.NoError(t, err)
 
 		coins, err := k.SettlePosition(ctx, pos)
 		require.NoError(t, err)
 
 		require.Equal(t, sdk.NewCoins(
-			sdk.NewCoin( /*denom=*/ pair.GetQuoteTokenDenom(), pos.Margin.TruncateInt()),
+			sdk.NewCoin( /*denom=*/ pair.QuoteDenom(), pos.Margin.TruncateInt()),
 		), coins) // TODO(mercilex): here we should have different denom, depends on Transfer impl
 	})
 
 	t.Run("success - settlement price not zero", func(t *testing.T) {
 		k, dep, ctx := getKeeper(t)
-		addr := sample.AccAddress()
-		pair, err := common.NewTokenPairFromStr("LUNA:UST") // memeing
-		require.NoError(t, err)
+		traderAddr := sample.AccAddress()
+		pair := common.MustNewAssetPair("LUNA:UST") // memeing
 
 		dep.mockVpoolKeeper.
 			EXPECT().
@@ -62,7 +60,7 @@ func TestSettlePosition(t *testing.T) {
 
 		dep.mockBankKeeper.EXPECT().
 			SendCoinsFromModuleToAccount(
-				ctx, types.VaultModuleAccount, addr, sdk.NewCoins(sdk.NewCoin("UST", sdk.NewInt(99_100)))).
+				ctx, types.VaultModuleAccount, traderAddr, sdk.NewCoins(sdk.NewCoin("UST", sdk.NewInt(99_100)))).
 			Return(error(nil))
 
 		// this means that the user
@@ -76,33 +74,32 @@ func TestSettlePosition(t *testing.T) {
 		// we also need to return margin which is 100coin
 		// so total is 99_100 coin
 		pos := types.Position{
-			Address:      addr.String(),
-			Pair:         pair.String(),
-			Size_:        sdk.NewDec(100),
-			Margin:       sdk.NewDec(100),
-			OpenNotional: sdk.NewDec(1000),
+			TraderAddress: traderAddr.String(),
+			Pair:          pair,
+			Size_:         sdk.NewDec(100),
+			Margin:        sdk.NewDec(100),
+			OpenNotional:  sdk.NewDec(1000),
 		}
-		err = k.Positions().Create(ctx, &pos)
+		err := k.PositionsState(ctx).Create(&pos)
 		require.NoError(t, err)
 
 		coins, err := k.SettlePosition(ctx, pos)
 		require.NoError(t, err)
 		require.Equal(t, coins, sdk.NewCoins(
-			sdk.NewInt64Coin(pair.GetQuoteTokenDenom(), 99100))) // todo(mercilex): modify denom once transfer is impl
+			sdk.NewInt64Coin(pair.QuoteDenom(), 99100))) // todo(mercilex): modify denom once transfer is impl
 	})
 
 	t.Run("position size is zero", func(t *testing.T) {
 		k, _, ctx := getKeeper(t)
-		addr := sample.AccAddress()
-		pair, err := common.NewTokenPairFromStr("LUNA:UST")
-		require.NoError(t, err)
+		traderAddr := sample.AccAddress()
+		pair := common.MustNewAssetPair("LUNA:UST")
 
 		pos := types.Position{
-			Address: addr.String(),
-			Pair:    pair.String(),
-			Size_:   sdk.ZeroDec(),
+			TraderAddress: traderAddr.String(),
+			Pair:          pair,
+			Size_:         sdk.ZeroDec(),
 		}
-		err = k.Positions().Create(ctx, &pos)
+		err := k.PositionsState(ctx).Create(&pos)
 		require.NoError(t, err)
 
 		coins, err := k.SettlePosition(ctx, pos)

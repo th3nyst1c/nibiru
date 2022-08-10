@@ -12,12 +12,14 @@ import (
 // CreatePool creates a pool for a specific pair.
 func (k Keeper) CreatePool(
 	ctx sdk.Context,
-	pair string,
+	pair common.AssetPair,
 	tradeLimitRatio sdk.Dec, // integer with 6 decimals, 1_000_000 means 1.0
 	quoteAssetReserve sdk.Dec,
 	baseAssetReserve sdk.Dec,
 	fluctuationLimitRatio sdk.Dec,
 	maxOracleSpreadRatio sdk.Dec,
+	maintenanceMarginRatio sdk.Dec,
+	maxLeverage sdk.Dec,
 ) {
 	pool := types.NewPool(
 		pair,
@@ -26,15 +28,17 @@ func (k Keeper) CreatePool(
 		baseAssetReserve,
 		fluctuationLimitRatio,
 		maxOracleSpreadRatio,
+		maintenanceMarginRatio,
+		maxLeverage,
 	)
 
 	k.savePool(ctx, pool)
-	k.saveSnapshot(ctx, common.TokenPair(pool.Pair), 0, pool.QuoteAssetReserve, pool.BaseAssetReserve, ctx.BlockTime(), ctx.BlockHeight())
-	k.saveSnapshotCounter(ctx, common.TokenPair(pair), 0)
+	k.saveSnapshot(ctx, pair, 0, pool.QuoteAssetReserve, pool.BaseAssetReserve)
+	k.saveSnapshotCounter(ctx, pair, 0)
 }
 
 // getPool returns the pool from database
-func (k Keeper) getPool(ctx sdk.Context, pair common.TokenPair) (
+func (k Keeper) getPool(ctx sdk.Context, pair common.AssetPair) (
 	*types.Pool, error,
 ) {
 	bz := ctx.KVStore(k.storeKey).Get(types.GetPoolKey(pair))
@@ -52,7 +56,7 @@ func (k Keeper) savePool(
 	pool *types.Pool,
 ) {
 	bz := k.codec.MustMarshal(pool)
-	ctx.KVStore(k.storeKey).Set(types.GetPoolKey(common.TokenPair(pool.Pair)), bz)
+	ctx.KVStore(k.storeKey).Set(types.GetPoolKey(pool.Pair), bz)
 }
 
 /*
@@ -61,12 +65,12 @@ Saves an updated pool to state and snapshots it.
 args:
   - ctx: cosmos-sdk context
   - updatedPool: pool object to save to state
-  - skipFluctuationCheck: override fluctuation check from last snapshot
+  - skipFluctuationCheck: determines if a fluctuation check should be done against the last snapshot
 
 ret:
   - err: error
 */
-func (k Keeper) savePoolAndSnapshot(
+func (k Keeper) updatePool(
 	ctx sdk.Context,
 	updatedPool *types.Pool,
 	skipFluctuationCheck bool,
@@ -78,9 +82,9 @@ func (k Keeper) savePoolAndSnapshot(
 		}
 	}
 
-	if err = k.addReserveSnapshot(
+	if err = k.updateSnapshot(
 		ctx,
-		common.TokenPair(updatedPool.Pair),
+		updatedPool.Pair,
 		updatedPool.QuoteAssetReserve,
 		updatedPool.BaseAssetReserve,
 	); err != nil {
@@ -93,7 +97,7 @@ func (k Keeper) savePoolAndSnapshot(
 }
 
 // ExistsPool returns true if pool exists, false if not.
-func (k Keeper) ExistsPool(ctx sdk.Context, pair common.TokenPair) bool {
+func (k Keeper) ExistsPool(ctx sdk.Context, pair common.AssetPair) bool {
 	return ctx.KVStore(k.storeKey).Has(types.GetPoolKey(pair))
 }
 
@@ -113,4 +117,25 @@ func (k Keeper) GetAllPools(ctx sdk.Context) []*types.Pool {
 	}
 
 	return pools
+}
+
+// GetPoolPrices returns the mark price, twap (mark) price, and index price for a vpool.
+func (k Keeper) GetPoolPrices(ctx sdk.Context, pool types.Pool) types.PoolPrices {
+	indexPrice, err := k.GetUnderlyingPrice(ctx, pool.Pair)
+	if err != nil {
+		// fail gracefully so that vpool queries run even if the oracle price feeds stop
+		k.Logger(ctx).Error(err.Error())
+	}
+	twapMark, err := k.GetCurrentTWAP(ctx, pool.Pair)
+	if err != nil {
+		// fail gracefully so that vpool queries run even if the TWAP is undefined.
+		k.Logger(ctx).Error(err.Error())
+	}
+	return types.PoolPrices{
+		MarkPrice:     pool.QuoteAssetReserve.Quo(pool.BaseAssetReserve),
+		IndexPrice:    indexPrice,
+		TwapMark:      twapMark.Price,
+		SwapInvariant: pool.BaseAssetReserve.Mul(pool.QuoteAssetReserve).RoundInt(),
+		BlockNumber:   ctx.BlockHeight(),
+	}
 }

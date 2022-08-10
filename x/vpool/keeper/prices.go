@@ -1,6 +1,7 @@
 package keeper
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
@@ -27,12 +28,15 @@ ret:
   - price: the price of the token pair as sdk.Dec
   - err: error
 */
-func (k Keeper) GetSpotPrice(ctx sdk.Context, pair common.TokenPair) (
-	price sdk.Dec, err error,
-) {
+func (k Keeper) GetSpotPrice(ctx sdk.Context, pair common.AssetPair) (sdk.Dec, error) {
 	pool, err := k.getPool(ctx, pair)
 	if err != nil {
 		return sdk.ZeroDec(), err
+	}
+
+	if pool.BaseAssetReserve.IsNil() || pool.BaseAssetReserve.IsZero() ||
+		pool.QuoteAssetReserve.IsNil() || pool.QuoteAssetReserve.IsZero() {
+		return sdk.ZeroDec(), nil
 	}
 
 	return pool.QuoteAssetReserve.Quo(pool.BaseAssetReserve), nil
@@ -50,13 +54,11 @@ ret:
   - price: price as sdk.Dec
   - err: error
 */
-func (k Keeper) GetUnderlyingPrice(ctx sdk.Context, pair common.TokenPair) (
-	price sdk.Dec, err error,
-) {
+func (k Keeper) GetUnderlyingPrice(ctx sdk.Context, pair common.AssetPair) (sdk.Dec, error) {
 	currentPrice, err := k.pricefeedKeeper.GetCurrentPrice(
 		ctx,
-		/* token0 */ pair.GetBaseTokenDenom(),
-		/* token1 */ pair.GetQuoteTokenDenom(),
+		/* token0 */ pair.BaseDenom(),
+		/* token1 */ pair.QuoteDenom(),
 	)
 	if err != nil {
 		return sdk.ZeroDec(), err
@@ -66,6 +68,8 @@ func (k Keeper) GetUnderlyingPrice(ctx sdk.Context, pair common.TokenPair) (
 }
 
 /*
+So how much stablecoin you would get if you sold baseAssetAmount amount of perpetual contracts.
+
 Returns the amount of quote assets required to achieve a move of baseAssetAmount in a direction.
 e.g. if removing <baseAssetAmount> base assets from the pool, returns the amount of quote assets do so.
 
@@ -81,7 +85,7 @@ ret:
 */
 func (k Keeper) GetBaseAssetPrice(
 	ctx sdk.Context,
-	pair common.TokenPair,
+	pair common.AssetPair,
 	dir types.Direction,
 	baseAssetAmount sdk.Dec,
 ) (quoteAmount sdk.Dec, err error) {
@@ -109,7 +113,7 @@ ret:
 */
 func (k Keeper) GetQuoteAssetPrice(
 	ctx sdk.Context,
-	pair common.TokenPair,
+	pair common.AssetPair,
 	dir types.Direction,
 	quoteAmount sdk.Dec,
 ) (baseAssetAmount sdk.Dec, err error) {
@@ -139,7 +143,7 @@ ret:
 */
 func (k Keeper) GetBaseAssetTWAP(
 	ctx sdk.Context,
-	pair common.TokenPair,
+	pair common.AssetPair,
 	direction types.Direction,
 	baseAssetAmount sdk.Dec,
 	lookbackInterval time.Duration,
@@ -172,7 +176,7 @@ ret:
 */
 func (k Keeper) GetQuoteAssetTWAP(
 	ctx sdk.Context,
-	pair common.TokenPair,
+	pair common.AssetPair,
 	direction types.Direction,
 	quoteAssetAmount sdk.Dec,
 	lookbackInterval time.Duration,
@@ -205,7 +209,7 @@ ret:
 */
 func (k Keeper) calcTwap(
 	ctx sdk.Context,
-	pair common.TokenPair,
+	pair common.AssetPair,
 	twapCalcOption types.TwapCalcOption,
 	direction types.Direction,
 	assetAmount sdk.Dec,
@@ -265,4 +269,86 @@ func (k Keeper) calcTwap(
 
 	// definition of TWAP
 	return cumulativePrice.QuoInt64(cumulativePeriodMs), nil
+}
+
+// GetCurrentTWAP fetches the instantaneous time-weighted average (mark) price
+// for the given asset pair.
+func (k Keeper) GetCurrentTWAP(
+	ctx sdk.Context, pair common.AssetPair,
+) (types.CurrentTWAP, error) {
+	// Ensure we still have valid prices
+	_, err := k.GetSpotPrice(ctx, pair)
+	if err != nil {
+		return types.CurrentTWAP{}, types.ErrNoValidPrice
+	}
+
+	store := ctx.KVStore(k.storeKey)
+	bz := store.Get(types.CurrentTWAPKey("twap-" + pair.String()))
+
+	if bz == nil {
+		return types.CurrentTWAP{}, types.ErrNoValidTWAP
+	}
+
+	var price types.CurrentTWAP
+	k.codec.MustUnmarshal(bz, &price)
+	if price.Price.IsZero() {
+		return types.CurrentTWAP{}, types.ErrNoValidPrice
+	}
+
+	return price, nil
+}
+
+/*
+updateTWAP updates the twap price for a token0, token1 pair
+We use the blocktime to update the twap price.
+
+Calculation is done as follow:
+	$$P_{TWAP} = \frac {\sum {P_j \times Bh_j }}{\sum{Bh_j}} $$
+With
+	P_j: current posted price for the pair of tokens
+	Bh_j: current block timestamp
+
+*/
+
+func (k Keeper) UpdateTWAP(ctx sdk.Context, pairID string) error {
+	pair, err := common.NewAssetPair(pairID)
+	if err != nil {
+		return err
+	}
+
+	currentPrice, err := k.GetSpotPrice(ctx, pair)
+	if err != nil {
+		return err
+	}
+
+	currentTWAP, err := k.GetCurrentTWAP(ctx, pair)
+	// Err there means no twap price have been set yet for this pair
+	if errors.Is(err, types.ErrNoValidTWAP) {
+		currentTWAP = types.CurrentTWAP{
+			PairID:      pairID,
+			Numerator:   sdk.ZeroDec(),
+			Denominator: sdk.ZeroDec(),
+			Price:       sdk.ZeroDec(),
+		}
+	}
+
+	blockUnixTime := sdk.NewInt(ctx.BlockTime().Unix())
+
+	newDenominator := currentTWAP.Denominator.Add(sdk.NewDecFromInt(blockUnixTime))
+	newNumerator := currentTWAP.Numerator.Add(currentPrice.Mul(sdk.NewDecFromInt(blockUnixTime)))
+
+	price := sdk.NewDec(0)
+	if !newDenominator.IsZero() {
+		price = newNumerator.Quo(newDenominator)
+	}
+
+	newTWAP := types.CurrentTWAP{
+		PairID:      pairID,
+		Numerator:   newNumerator,
+		Denominator: newDenominator,
+		Price:       price,
+	}
+	store := ctx.KVStore(k.storeKey)
+	store.Set(types.CurrentTWAPKey("twap-"+pairID), k.codec.MustMarshal(&newTWAP))
+	return nil
 }

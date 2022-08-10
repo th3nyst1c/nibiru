@@ -13,11 +13,11 @@ import (
 func BeginBlocker(ctx sdk.Context, k keeper.Keeper) {
 	// Update the current price of each asset.
 	for _, pair := range k.GetPairs(ctx) {
-		if !pair.Active {
+		if !k.IsActivePair(ctx, pair.String()) {
 			continue
 		}
 
-		err := k.SetCurrentPrices(ctx, pair.Token0, pair.Token1)
+		err := k.GatherRawPrices(ctx, pair.Token0, pair.Token1)
 		if err != nil && !errors.Is(err, types.ErrNoValidPrice) {
 			panic(err)
 		}

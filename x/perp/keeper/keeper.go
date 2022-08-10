@@ -3,11 +3,10 @@ package keeper
 import (
 	"fmt"
 
-	"github.com/tendermint/tendermint/libs/log"
-
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types"
+	"github.com/tendermint/tendermint/libs/log"
 
 	"github.com/NibiruChain/nibiru/x/perp/types"
 )
@@ -21,6 +20,7 @@ type Keeper struct {
 	AccountKeeper   types.AccountKeeper
 	PricefeedKeeper types.PricefeedKeeper
 	VpoolKeeper     types.VpoolKeeper
+	EpochKeeper     types.EpochKeeper
 }
 
 // NewKeeper Creates a new x/perp Keeper instance.
@@ -33,6 +33,7 @@ func NewKeeper(
 	bankKeeper types.BankKeeper,
 	priceKeeper types.PricefeedKeeper,
 	vpoolKeeper types.VpoolKeeper,
+	epochKeeper types.EpochKeeper,
 ) Keeper {
 	// Ensure that the module account is set.
 	if moduleAcc := accountKeeper.GetModuleAddress(types.ModuleName); moduleAcc == nil {
@@ -53,17 +54,12 @@ func NewKeeper(
 		BankKeeper:      bankKeeper,
 		PricefeedKeeper: priceKeeper,
 		VpoolKeeper:     vpoolKeeper,
+		EpochKeeper:     epochKeeper,
 	}
 }
 
 func (k Keeper) Logger(ctx sdk.Context) log.Logger {
 	return ctx.Logger().With("module", fmt.Sprintf("x/%s", types.ModuleName))
-}
-
-// GetModuleAccountBalance gets the airdrop coin balance of module account.
-func (k Keeper) GetModuleAccountBalance(ctx sdk.Context, denom string) sdk.Coin {
-	moduleAccAddr := k.AccountKeeper.GetModuleAddress(types.ModuleName)
-	return k.BankKeeper.GetBalance(ctx, moduleAccAddr, denom)
 }
 
 // GetParams get all parameters as types.Params

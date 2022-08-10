@@ -1,11 +1,12 @@
 package types
 
-//go:generate  mockgen -destination=../../testutil/mock/perp_interfaces.go -package=mock github.com/NibiruChain/nibiru/x/perp/types AccountKeeper,BankKeeper,PricefeedKeeper,VpoolKeeper
+//go:generate  mockgen -destination=../../testutil/mock/perp_interfaces.go -package=mock github.com/NibiruChain/nibiru/x/perp/types AccountKeeper,BankKeeper,PricefeedKeeper,VpoolKeeper,EpochKeeper
 
 import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
 	"github.com/NibiruChain/nibiru/x/common"
+	"github.com/NibiruChain/nibiru/x/epochs/types"
 
 	"time"
 
@@ -44,20 +45,44 @@ type BankKeeper interface {
 	) error
 	BurnCoins(ctx sdk.Context, moduleName string, amt sdk.Coins) error
 	GetBalance(ctx sdk.Context, addr sdk.AccAddress, denom string) sdk.Coin
+	GetAllBalances(ctx sdk.Context, addr sdk.AccAddress) sdk.Coins
 }
 
 type PricefeedKeeper interface {
+	/* GetCurrentPrice fetches the current median price of all oracles for a specific market.
+
+	args:
+	- ctx: cosmos-sdk context
+	- token0: the base asset
+	- token1: the quote asset
+
+	ret:
+	- currPrice: the current price
+	- err: error if any
+	*/
 	GetCurrentPrice(ctx sdk.Context, token0 string, token1 string,
 	) (pftypes.CurrentPrice, error)
 	GetCurrentPrices(ctx sdk.Context) pftypes.CurrentPrices
 	GetRawPrices(ctx sdk.Context, marketId string) pftypes.PostedPrices
-	GetPair(ctx sdk.Context, pairID string) (pftypes.Pair, bool)
+	IsActivePair(ctx sdk.Context, pairID string) bool
 	// Returns the pairs from the x/pricefeed params
-	GetPairs(ctx sdk.Context) pftypes.Pairs
-	GetOracle(ctx sdk.Context, pairID string, address sdk.AccAddress,
-	) (sdk.AccAddress, error)
-	GetOracles(ctx sdk.Context, pairID string) ([]sdk.AccAddress, error)
-	SetCurrentPrices(ctx sdk.Context, token0 string, token1 string) error
+	GetPairs(ctx sdk.Context) common.AssetPairs
+	IsWhitelistedOracle(ctx sdk.Context, pairID string, address sdk.AccAddress,
+	) bool
+	GetOraclesForPair(ctx sdk.Context, pairID string) (oracles []sdk.AccAddress)
+
+	/* GatherRawPrices updates the current price of an asset to the median of all valid posted oracle prices.
+
+	args:
+	- ctx: cosmos-sdk context
+	- token0: the base asset
+	- token1: the quote asset
+
+	ret:
+	- err: error if any
+	*/
+	GatherRawPrices(ctx sdk.Context, token0 string, token1 string) error
+	GetCurrentTWAP(ctx sdk.Context, token0 string, token1 string) (sdk.Dec, error)
 }
 
 type VpoolKeeper interface {
@@ -71,6 +96,7 @@ type VpoolKeeper interface {
 	  - dir: either add or remove from pool
 	  - baseAssetAmount: the amount of quote asset being traded
 	  - quoteAmountLimit: a limiter to ensure the trader doesn't get screwed by slippage
+	  - skipFluctuationLimitCheck: whether or not to skip the fluctuation limit check
 
 	ret:
 	  - quoteAssetAmount: the amount of quote asset swapped
@@ -78,10 +104,11 @@ type VpoolKeeper interface {
 	*/
 	SwapBaseForQuote(
 		ctx sdk.Context,
-		pair common.TokenPair,
+		pair common.AssetPair,
 		dir vpooltypes.Direction,
-		abs sdk.Dec,
-		limit sdk.Dec,
+		baseAssetAmount sdk.Dec,
+		quoteAmountLimit sdk.Dec,
+		skipFluctuationLimitCheck bool,
 	) (sdk.Dec, error)
 
 	/* Trades quoteAssets in exchange for baseAssets.
@@ -94,6 +121,7 @@ type VpoolKeeper interface {
 	- dir: either add or remove from pool
 	- quoteAssetAmount: the amount of quote asset being traded
 	- baseAmountLimit: a limiter to ensure the trader doesn't get screwed by slippage
+	- skipFluctuationLimitCheck: whether or not to skip the fluctuation limit check
 
 	ret:
 	- baseAssetAmount: the amount of base asset traded from the pool
@@ -101,10 +129,11 @@ type VpoolKeeper interface {
 	*/
 	SwapQuoteForBase(
 		ctx sdk.Context,
-		pair common.TokenPair,
+		pair common.AssetPair,
 		dir vpooltypes.Direction,
 		quoteAssetAmount sdk.Dec,
 		baseAmountLimit sdk.Dec,
+		skipFluctuationLimitCheck bool,
 	) (sdk.Dec, error)
 
 	/* Returns the amount of quote assets required to achieve a move of baseAssetAmount in a direction,
@@ -124,7 +153,7 @@ type VpoolKeeper interface {
 	*/
 	GetBaseAssetTWAP(
 		ctx sdk.Context,
-		pair common.TokenPair,
+		pair common.AssetPair,
 		direction vpooltypes.Direction,
 		baseAssetAmount sdk.Dec,
 		lookbackInterval time.Duration,
@@ -147,7 +176,7 @@ type VpoolKeeper interface {
 	*/
 	GetQuoteAssetTWAP(
 		ctx sdk.Context,
-		pair common.TokenPair,
+		pair common.AssetPair,
 		direction vpooltypes.Direction,
 		quoteAssetAmount sdk.Dec,
 		lookbackInterval time.Duration,
@@ -168,7 +197,7 @@ type VpoolKeeper interface {
 	*/
 	GetBaseAssetPrice(
 		ctx sdk.Context,
-		pair common.TokenPair,
+		pair common.AssetPair,
 		direction vpooltypes.Direction,
 		baseAssetAmount sdk.Dec,
 	) (quoteAssetAmount sdk.Dec, err error)
@@ -188,7 +217,7 @@ type VpoolKeeper interface {
 	*/
 	GetQuoteAssetPrice(
 		ctx sdk.Context,
-		pair common.TokenPair,
+		pair common.AssetPair,
 		dir vpooltypes.Direction,
 		quoteAmount sdk.Dec,
 	) (baseAssetAmount sdk.Dec, err error)
@@ -211,7 +240,7 @@ type VpoolKeeper interface {
 	*/
 	GetSpotPrice(
 		ctx sdk.Context,
-		pair common.TokenPair,
+		pair common.AssetPair,
 	) (price sdk.Dec, err error)
 
 	/* Retrieves the base asset's price from PricefeedKeeper (oracle).
@@ -227,13 +256,21 @@ type VpoolKeeper interface {
 	*/
 	GetUnderlyingPrice(
 		ctx sdk.Context,
-		pair common.TokenPair,
+		pair common.AssetPair,
 	) (price sdk.Dec, err error)
 
-	CalcPerpTxFee(ctx sdk.Context, pair common.TokenPair, quoteAmt sdk.Int,
-	) (toll sdk.Int, spread sdk.Int, err error)
-	IsOverSpreadLimit(ctx sdk.Context, pair common.TokenPair) bool
+	IsOverSpreadLimit(ctx sdk.Context, pair common.AssetPair) bool
+	GetMaintenanceMarginRatio(ctx sdk.Context, pair common.AssetPair) sdk.Dec
+	GetMaxLeverage(ctx sdk.Context, pair common.AssetPair) sdk.Dec
 	// ExistsPool returns true if pool exists, false if not.
-	ExistsPool(ctx sdk.Context, pair common.TokenPair) bool
-	GetSettlementPrice(ctx sdk.Context, pair common.TokenPair) (sdk.Dec, error)
+	ExistsPool(ctx sdk.Context, pair common.AssetPair) bool
+	GetSettlementPrice(ctx sdk.Context, pair common.AssetPair) (sdk.Dec, error)
+
+	// GetCurrentTWAP fetches the TWAP for the specified token pair / pool
+	GetCurrentTWAP(ctx sdk.Context, pair common.AssetPair) (vpooltypes.CurrentTWAP, error)
+}
+
+type EpochKeeper interface {
+	// GetEpochInfo returns epoch info by identifier.
+	GetEpochInfo(ctx sdk.Context, identifier string) types.EpochInfo
 }

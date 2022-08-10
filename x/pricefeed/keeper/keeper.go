@@ -51,60 +51,75 @@ func (k Keeper) Logger(ctx sdk.Context) log.Logger {
 	return ctx.Logger().With("module", fmt.Sprintf("x/%s", types.ModuleName))
 }
 
-// SetPrice updates the posted price for a specific oracle
-func (k Keeper) SetPrice(
+// PostRawPrice updates the posted price for a specific oracle
+func (k Keeper) PostRawPrice(
 	ctx sdk.Context,
 	oracle sdk.AccAddress,
-	token0 string,
-	token1 string,
+	pairStr string,
 	price sdk.Dec,
 	expiry time.Time,
-) (types.PostedPrice, error) {
+) (postedPrice types.PostedPrice, err error) {
 	// If the posted price expires before the current block, it is invalid.
 	if expiry.Before(ctx.BlockTime()) {
-		return types.PostedPrice{}, types.ErrExpired
+		return postedPrice, types.ErrExpired
 	}
 
-	// TODO: test this behavior when setting the inverse pair
-	pairName := common.RawPoolNameFromDenoms([]string{token0, token1})
-	pairID := common.PoolNameFromDenoms([]string{token0, token1})
-	if (pairName != pairID) && (!price.Equal(sdk.ZeroDec())) {
+	if !price.IsPositive() {
+		return postedPrice, fmt.Errorf("price must be positive, not: %s", price)
+	}
+
+	pair, err := common.NewAssetPair(pairStr)
+	if err != nil {
+		return postedPrice, err
+	}
+
+	// Set inverse price if the oracle gives the wrong string
+	if k.IsActivePair(ctx, pair.Inverse().String()) {
+		pair = pair.Inverse()
 		price = sdk.OneDec().Quo(price)
 	}
 
-	_, err := k.GetOracle(ctx, pairID, oracle)
-	if err != nil {
-		return types.PostedPrice{}, err
+	if !k.IsWhitelistedOracle(ctx, pair.String(), oracle) {
+		return types.PostedPrice{}, fmt.Errorf(
+			"oracle %s cannot post on pair %v", oracle, pair.String())
 	}
 
-	newRawPrice := types.NewPostedPrice(pairID, oracle, price, expiry)
+	newPostedPrice := types.NewPostedPrice(pair, oracle, price, expiry)
 
 	// Emit an event containing the oracle's new price
-	ctx.EventManager().EmitEvent(
-		sdk.NewEvent(
-			types.EventTypeOracleUpdatedPrice,
-			sdk.NewAttribute(types.AttributePairID, pairID),
-			sdk.NewAttribute(types.AttributeOracle, oracle.String()),
-			sdk.NewAttribute(types.AttributePairPrice, price.String()),
-			sdk.NewAttribute(types.AttributeExpiry, expiry.UTC().String()),
-		),
-	)
+
+	err = ctx.EventManager().EmitTypedEvent(&types.EventOracleUpdatePrice{
+		PairId:    pair.String(),
+		Oracle:    oracle.String(),
+		PairPrice: price,
+		Expiry:    expiry,
+	})
+	if err != nil {
+		panic(err)
+	}
 
 	// Sets the raw price for a single oracle instead of an array of all oracle's raw prices
 	store := ctx.KVStore(k.storeKey)
-	store.Set(types.RawPriceKey(pairID, oracle), k.cdc.MustMarshal(&newRawPrice))
-	return newRawPrice, nil
+	store.Set(types.RawPriceKey(pair.String(), oracle), k.cdc.MustMarshal(&newPostedPrice))
+	return newPostedPrice, nil
 }
 
-// SetCurrentPrices updates the price of an asset to the median of all valid oracle inputs
-func (k Keeper) SetCurrentPrices(ctx sdk.Context, token0 string, token1 string) error {
-	assetPair := common.AssetPair{Token0: token0, Token1: token1}
-	pairID := assetPair.Name()
-	tokens := common.DenomsFromPoolName(pairID)
-	token0, token1 = tokens[0], tokens[1]
+/*
+GatherRawPrices updates the current price of an asset to the median of all valid posted oracle prices.
 
-	_, ok := k.GetPair(ctx, pairID)
-	if !ok {
+args:
+  - ctx: cosmos-sdk context
+  - token0: the base asset
+  - token1: the quote asset
+
+ret:
+  - err: error if any
+*/
+func (k Keeper) GatherRawPrices(ctx sdk.Context, token0 string, token1 string) error {
+	assetPair := common.AssetPair{Token0: token0, Token1: token1}
+	pairID := assetPair.String()
+
+	if !k.IsActivePair(ctx, pairID) {
 		return sdkerrors.Wrap(types.ErrInvalidPair, pairID)
 	}
 	// store current price
@@ -140,23 +155,20 @@ func (k Keeper) SetCurrentPrices(ctx sdk.Context, token0 string, token1 string) 
 	// check case that market price was not set in genesis
 	if validPrevPrice && !medianPrice.Equal(prevPrice.Price) {
 		// only emit event if price has changed
-		ctx.EventManager().EmitEvent(
-			sdk.NewEvent(
-				types.EventTypePairPriceUpdated,
-				sdk.NewAttribute(types.AttributePairID, pairID),
-				sdk.NewAttribute(types.AttributePairPrice, medianPrice.String()),
-			),
-		)
+		err = ctx.EventManager().EmitTypedEvent(&types.EventPairPriceUpdated{
+			PairId:    pairID,
+			PairPrice: medianPrice,
+		})
+		if err != nil {
+			panic(err)
+		}
 	}
 
 	currentPrice := types.NewCurrentPrice(token0, token1, medianPrice)
 	k.setCurrentPrice(ctx, pairID, currentPrice)
 
 	// Update the TWA prices
-	err = k.updateTWAPPrice(ctx, pairID)
-	if err != nil {
-		return err
-	}
+	k.saveOrUpdateSnapshot(ctx, pairID, currentPrice.Price)
 
 	return nil
 }
@@ -164,54 +176,6 @@ func (k Keeper) SetCurrentPrices(ctx sdk.Context, token0 string, token1 string) 
 func (k Keeper) setCurrentPrice(ctx sdk.Context, pairID string, currentPrice types.CurrentPrice) {
 	store := ctx.KVStore(k.storeKey)
 	store.Set(types.CurrentPriceKey(pairID), k.cdc.MustMarshal(&currentPrice))
-}
-
-/* updateTWAPPrice updates the twap price for a token0, token1 pair
-We use the blocktime to update the twap price.
-
-Calculation is done as follow:
-	$$P_{TWAP} = \frac {\sum {P_j \times Bh_j }}{\sum{Bh_j}} $$
-With
-	P_j: current posted price for the pair of tokens
-	Bh_j: current block timestamp
-
-*/
-
-func (k Keeper) updateTWAPPrice(ctx sdk.Context, pairID string) error {
-	tokens := common.DenomsFromPoolName(pairID)
-	token0, token1 := tokens[0], tokens[1]
-
-	currentPrice, err := k.GetCurrentPrice(ctx, token0, token1)
-	if err != nil {
-		return err
-	}
-
-	currentTWAP, err := k.GetCurrentTWAPPrice(ctx, token0, token1)
-	// Err there means no twap price have been set yet for this pair
-	if err != nil {
-		currentTWAP = types.CurrentTWAP{
-			PairID:      pairID,
-			Numerator:   sdk.MustNewDecFromStr("0"),
-			Denominator: sdk.NewInt(0),
-			Price:       sdk.MustNewDecFromStr("0"),
-		}
-	}
-
-	blockUnixTime := sdk.NewInt(ctx.BlockTime().Unix())
-
-	newDenominator := currentTWAP.Denominator.Add(blockUnixTime)
-	newNumerator := currentTWAP.Numerator.Add(currentPrice.Price.Mul(sdk.NewDecFromInt(blockUnixTime)))
-
-	newTWAP := types.CurrentTWAP{
-		PairID:      pairID,
-		Numerator:   newNumerator,
-		Denominator: newDenominator,
-		Price:       newNumerator.Quo(sdk.NewDecFromInt(newDenominator)),
-	}
-	store := ctx.KVStore(k.storeKey)
-	store.Set(types.CurrentTWAPPriceKey("twap-"+pairID), k.cdc.MustMarshal(&newTWAP))
-
-	return nil
 }
 
 // CalculateMedianPrice calculates the median prices for the input prices.
@@ -241,27 +205,41 @@ func (k Keeper) calculateMeanPrice(priceA, priceB types.CurrentPrice) sdk.Dec {
 	return mean
 }
 
-// GetCurrentPrice fetches the current median price of all oracles for a specific market
+/*
+GetCurrentPrice fetches the current median price of all oracles for a specific market.
+
+args:
+  - ctx: cosmos-sdk context
+  - token0: the base asset
+  - token1: the quote asset
+
+ret:
+  - currPrice: the current price
+  - err: error if any
+*/
 func (k Keeper) GetCurrentPrice(ctx sdk.Context, token0 string, token1 string,
 ) (currPrice types.CurrentPrice, err error) {
-	assetPair := common.AssetPair{Token0: token0, Token1: token1}
-	pairID := assetPair.Name()
+	pair := common.AssetPair{Token0: token0, Token1: token1}
+	givenIsActive := k.IsActivePair(ctx, pair.String())
+	inverseIsActive := k.IsActivePair(ctx, pair.Inverse().String())
+	if !givenIsActive && inverseIsActive {
+		pair = pair.Inverse()
+	}
 
+	// Retrieve current price from the KV store
 	store := ctx.KVStore(k.storeKey)
-	bz := store.Get(types.CurrentPriceKey(pairID))
-
+	bz := store.Get(types.CurrentPriceKey(pair.String()))
 	if bz == nil {
 		return types.CurrentPrice{}, types.ErrNoValidPrice
 	}
-
 	var price types.CurrentPrice
 	k.cdc.MustUnmarshal(bz, &price)
 	if price.Price.Equal(sdk.ZeroDec()) {
 		return types.CurrentPrice{}, types.ErrNoValidPrice
 	}
 
-	if !assetPair.IsProperOrder() {
-		// Return the inverse price if the tokens are not in "proper" order.
+	if inverseIsActive {
+		// Return the inverse price if the tokens are not in params order.
 		inversePrice := sdk.OneDec().Quo(price.Price)
 		return types.NewCurrentPrice(
 			/* token0 */ token1,
@@ -272,42 +250,100 @@ func (k Keeper) GetCurrentPrice(ctx sdk.Context, token0 string, token1 string,
 	return price, nil
 }
 
-// GetCurrentTWAPPrice fetches the current median price of all oracles for a specific market
-func (k Keeper) GetCurrentTWAPPrice(ctx sdk.Context, token0 string, token1 string) (currPrice types.CurrentTWAP, err error) {
+/*
+Gets the time-weighted average price from [ ctx.BlockTime() - interval, ctx.BlockTime() )
+Note the open-ended right bracket.
+
+Args:
+- ctx: cosmos-sdk context
+- pair: the token pair
+
+Returns:
+- twap: TWAP as sdk.Dec
+- err: error
+*/
+func (k Keeper) GetCurrentTWAP(ctx sdk.Context, token0 string, token1 string,
+) (twap sdk.Dec, err error) {
 	// Ensure we still have valid prices
 	_, err = k.GetCurrentPrice(ctx, token0, token1)
 	if err != nil {
-		return types.CurrentTWAP{}, types.ErrNoValidPrice
+		return sdk.Dec{}, types.ErrNoValidPrice
 	}
 
 	assetPair := common.AssetPair{Token0: token0, Token1: token1}
-	pairID := assetPair.Name()
+	if err := assetPair.Validate(); err != nil {
+		return sdk.Dec{}, err
+	}
+	givenIsActive := k.IsActivePair(ctx, assetPair.String())
+	inverseIsActive := k.IsActivePair(ctx, assetPair.Inverse().String())
+	if !givenIsActive && inverseIsActive {
+		assetPair = assetPair.Inverse()
+	}
+	lookbackWindow := k.GetParams(ctx).TwapLookbackWindow
+	// earliest timestamp we'll look back until
+	lowerLimitTimestampMs := ctx.BlockTime().Add(-lookbackWindow).UnixMilli()
 
-	store := ctx.KVStore(k.storeKey)
-	bz := store.Get(types.CurrentTWAPPriceKey("twap-" + pairID))
+	var cumulativePrice sdk.Dec = sdk.ZeroDec()
+	var cumulativePeriodMs int64 = 0
+	var prevTimestampMs int64 = ctx.BlockTime().UnixMilli()
 
-	if bz == nil {
-		return types.CurrentTWAP{}, types.ErrNoValidTWAP
+	// traverse snapshots in reverse order
+	startKey := types.PriceSnapshotKey(assetPair.String(), ctx.BlockHeight())
+	var numShapshots int64 = 0
+	var snapshotPriceBuffer []sdk.Dec // contains snapshots at time 0
+	k.IteratePriceSnapshotsFrom(
+		/*ctx=*/ ctx,
+		/*start=*/ startKey,
+		/*end=*/ nil,
+		/*reverse=*/ true,
+		/*do=*/ func(ps *types.PriceSnapshot) (stop bool) {
+			numShapshots += 1
+			var timeElapsedMs int64
+			if ps.TimestampMs <= lowerLimitTimestampMs {
+				// current snapshot is below the lower limit
+				timeElapsedMs = prevTimestampMs - lowerLimitTimestampMs
+			} else {
+				timeElapsedMs = prevTimestampMs - ps.TimestampMs
+			}
+			cumulativePrice = cumulativePrice.Add(ps.Price.MulInt64(timeElapsedMs))
+			cumulativePeriodMs += timeElapsedMs
+
+			if cumulativePeriodMs <= 0 {
+				snapshotPriceBuffer = append(snapshotPriceBuffer, ps.Price)
+			}
+
+			// end early if we're already beyond the lower limit timestamp
+			if ps.TimestampMs <= lowerLimitTimestampMs {
+				return true
+			}
+			prevTimestampMs = ps.TimestampMs
+			return false
+		})
+
+	switch {
+	case cumulativePeriodMs < 0:
+		return sdk.Dec{}, fmt.Errorf("cumulativePeriodMs, %v, should never be negative", cumulativePeriodMs)
+	case (cumulativePeriodMs == 0) && (numShapshots > 0):
+		sum := sdk.ZeroDec()
+		for _, price := range snapshotPriceBuffer {
+			sum = sum.Add(price)
+		}
+		return sum.QuoInt64(numShapshots), nil
+	case (cumulativePeriodMs == 0) && (numShapshots == 0):
+		return sdk.Dec{}, fmt.Errorf(`
+			failed to calculate twap, no time passed and no snapshots have been taken since
+			ctx.BlockTime: %v, 
+			ctx.BlockHeight: %v,
+			assetPair: %s, 
+		`, prevTimestampMs, ctx.BlockHeight(), assetPair)
 	}
 
-	var price types.CurrentTWAP
-	k.cdc.MustUnmarshal(bz, &price)
-	if price.Price.IsZero() {
-		return types.CurrentTWAP{}, types.ErrNoValidPrice
-	}
+	twap = cumulativePrice.QuoInt64(cumulativePeriodMs)
 
-	if !assetPair.IsProperOrder() {
-		// Return the inverse price if the tokens are not in "proper" order.
-		inversePrice := sdk.OneDec().Quo(price.Price)
-		return types.NewCurrentTWAP(
-			/* token0 */ token1,
-			/* token1 */ token0,
-			/* numerator */ price.Numerator,
-			/* denominator */ price.Denominator,
-			/* price */ inversePrice), nil
+	if !twap.IsZero() && inverseIsActive {
+		return sdk.OneDec().Quo(twap), nil
 	}
-
-	return price, nil
+	return twap, nil
 }
 
 // IterateCurrentPrices iterates over all current price objects in the store and performs a callback function
@@ -334,9 +370,16 @@ func (k Keeper) GetCurrentPrices(ctx sdk.Context) types.CurrentPrices {
 }
 
 // GetRawPrices fetches the set of all prices posted by oracles for an asset
-func (k Keeper) GetRawPrices(ctx sdk.Context, marketId string) types.PostedPrices {
+func (k Keeper) GetRawPrices(ctx sdk.Context, pairStr string) types.PostedPrices {
+	inversePair := common.MustNewAssetPair(pairStr).Inverse()
+	if k.IsActivePair(ctx, inversePair.String()) {
+		panic(fmt.Errorf(
+			`cannot fetch posted prices using inverse pair, %v ;
+			Use pair, %v, instead`, inversePair.String(), pairStr))
+	}
+
 	var pps types.PostedPrices
-	k.IterateRawPricesByPair(ctx, marketId, func(pp types.PostedPrice) (stop bool) {
+	k.IterateRawPricesByPair(ctx, pairStr, func(pp types.PostedPrice) (stop bool) {
 		pps = append(pps, pp)
 		return false
 	})

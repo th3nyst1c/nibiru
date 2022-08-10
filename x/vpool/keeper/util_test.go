@@ -8,13 +8,14 @@ import (
 	"github.com/cosmos/cosmos-sdk/store"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/require"
+	"github.com/tendermint/tendermint/libs/log"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	tmdb "github.com/tendermint/tm-db"
 
+	"github.com/NibiruChain/nibiru/x/common"
+
 	"github.com/NibiruChain/nibiru/x/vpool/types"
 )
-
-const NUSDPair = "BTC:NUSD"
 
 func VpoolKeeper(t *testing.T, pricefeedKeeper types.PricefeedKeeper) (
 	vpoolKeeper Keeper, ctx sdk.Context,
@@ -28,10 +29,9 @@ func VpoolKeeper(t *testing.T, pricefeedKeeper types.PricefeedKeeper) (
 
 	vpoolKeeper = NewKeeper(
 		codec.NewProtoCodec(codectypes.NewInterfaceRegistry()),
-		storeKey,
-		pricefeedKeeper,
+		storeKey, pricefeedKeeper,
 	)
-	ctx = sdk.NewContext(stateStore, tmproto.Header{}, false, nil)
+	ctx = sdk.NewContext(stateStore, tmproto.Header{}, false, log.NewNopLogger())
 
 	return vpoolKeeper, ctx
 }
@@ -40,14 +40,18 @@ func getSamplePool() *types.Pool {
 	ratioLimit, _ := sdk.NewDecFromStr("0.9")
 	fluctuationLimit, _ := sdk.NewDecFromStr("0.1")
 	maxOracleSpreadRatio := sdk.MustNewDecFromStr("0.1")
+	maintenanceMarginRatio := sdk.MustNewDecFromStr("0.0625")
+	maxLeverage := sdk.MustNewDecFromStr("15")
 
 	pool := types.NewPool(
-		NUSDPair,
+		common.PairBTCStable,
 		ratioLimit,
 		sdk.NewDec(10_000_000),
 		sdk.NewDec(5_000_000),
 		fluctuationLimit,
 		maxOracleSpreadRatio,
+		maintenanceMarginRatio,
+		maxLeverage,
 	)
 
 	return pool

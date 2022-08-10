@@ -5,16 +5,22 @@ import (
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/require"
+
+	"github.com/NibiruChain/nibiru/x/common"
 )
 
 func TestPoolHasEnoughQuoteReserve(t *testing.T) {
+	pair := common.MustNewAssetPair("BTC:NUSD")
+
 	pool := NewPool(
-		"BTC:NUSD",
+		pair,
 		sdk.MustNewDecFromStr("0.9"), // 0.9
 		sdk.NewDec(10_000_000),       // 10
 		sdk.NewDec(10_000_000),       // 10
 		sdk.MustNewDecFromStr("0.1"),
 		sdk.MustNewDecFromStr("0.1"),
+		sdk.MustNewDecFromStr("0.0625"),
+		sdk.MustNewDecFromStr("15"),
 	)
 
 	// less that max ratio
@@ -27,7 +33,27 @@ func TestPoolHasEnoughQuoteReserve(t *testing.T) {
 	require.False(t, pool.HasEnoughQuoteReserve(sdk.NewDec(9_000_001)))
 }
 
+func TestSetMarginRatioAndLeverage(t *testing.T) {
+	pair := common.MustNewAssetPair("BTC:NUSD")
+
+	pool := NewPool(
+		pair,
+		sdk.MustNewDecFromStr("0.9"), // 0.9
+		sdk.NewDec(10_000_000),       // 10
+		sdk.NewDec(10_000_000),       // 10
+		sdk.MustNewDecFromStr("0.1"),
+		sdk.MustNewDecFromStr("0.1"),
+		/*maintenanceMarginRatio*/ sdk.MustNewDecFromStr("0.42"),
+		/*maxLeverage*/ sdk.MustNewDecFromStr("15"),
+	)
+
+	require.Equal(t, pool.MaintenanceMarginRatio, sdk.MustNewDecFromStr("0.42"))
+	require.Equal(t, pool.MaxLeverage, sdk.MustNewDecFromStr("15"))
+}
+
 func TestGetBaseAmountByQuoteAmount(t *testing.T) {
+	pair := common.MustNewAssetPair("BTC:NUSD")
+
 	tests := []struct {
 		name               string
 		baseAssetReserve   sdk.Dec
@@ -75,12 +101,14 @@ func TestGetBaseAmountByQuoteAmount(t *testing.T) {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			pool := NewPool(
-				/*pair=*/ "BTC:NUSD",
+				/*pair=*/ pair,
 				/*tradeLimitRatio=*/ sdk.MustNewDecFromStr("0.9"),
 				/*quoteAssetReserve=*/ tc.quoteAssetReserve,
 				/*baseAssetReserve=*/ tc.baseAssetReserve,
 				/*fluctuationLimitRatio=*/ sdk.MustNewDecFromStr("0.1"),
 				/*maxOracleSpreadRatio=*/ sdk.MustNewDecFromStr("0.1"),
+				/* maintenanceMarginRatio */ sdk.MustNewDecFromStr("0.0625"),
+				/* maxLeverage */ sdk.MustNewDecFromStr("15"),
 			)
 
 			amount, err := pool.GetBaseAmountByQuoteAmount(tc.direction, tc.quoteAmount)
@@ -98,6 +126,8 @@ func TestGetBaseAmountByQuoteAmount(t *testing.T) {
 }
 
 func TestGetQuoteAmountByBaseAmount(t *testing.T) {
+	pair := common.MustNewAssetPair("BTC:NUSD")
+
 	tests := []struct {
 		name                string
 		baseAssetReserve    sdk.Dec
@@ -145,12 +175,14 @@ func TestGetQuoteAmountByBaseAmount(t *testing.T) {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			pool := NewPool(
-				/*pair=*/ "BTC:NUSD",
+				/*pair=*/ pair,
 				/*tradeLimitRatio=*/ sdk.OneDec(),
 				/*quoteAssetReserve=*/ tc.quoteAssetReserve,
 				/*baseAssetReserve=*/ tc.baseAssetReserve,
 				/*fluctuationLimitRatio=*/ sdk.OneDec(),
 				/*maxOracleSpreadRatio=*/ sdk.OneDec(),
+				/*maintenanceMarginRatio=*/ sdk.MustNewDecFromStr("0.0625"),
+				/* maxLeverage */ sdk.MustNewDecFromStr("15"),
 			)
 
 			amount, err := pool.GetQuoteAmountByBaseAmount(tc.direction, tc.baseAmount)
@@ -168,13 +200,17 @@ func TestGetQuoteAmountByBaseAmount(t *testing.T) {
 }
 
 func TestIncreaseDecreaseReserves(t *testing.T) {
+	pair := common.MustNewAssetPair("ATOM:NUSD")
+
 	pool := NewPool(
-		"ATOM:NUSD",
+		pair,
 		/*tradeLimitRatio=*/ sdk.MustNewDecFromStr("0.9"),
 		/*quoteAssetReserve=*/ sdk.NewDec(1_000_000),
 		/*baseAssetReserve*/ sdk.NewDec(1_000_000),
 		/*fluctuationLimitRatio*/ sdk.MustNewDecFromStr("0.1"),
 		/*maxOracleSpreadRatio*/ sdk.MustNewDecFromStr("0.01"),
+		/* maintenanceMarginRatio */ sdk.MustNewDecFromStr("0.0625"),
+		/* maxLeverage */ sdk.MustNewDecFromStr("15"),
 	)
 
 	t.Log("decrease quote asset reserve")

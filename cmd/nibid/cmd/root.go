@@ -6,14 +6,6 @@ import (
 	"os"
 	"path/filepath"
 
-	// Nibiru
-	"github.com/NibiruChain/nibiru/app"
-	dexcmd "github.com/NibiruChain/nibiru/x/dex/client/cli"
-	perpcmd "github.com/NibiruChain/nibiru/x/perp/client/cli"
-	pricefeedcmd "github.com/NibiruChain/nibiru/x/pricefeed/client/cli"
-	sccmd "github.com/NibiruChain/nibiru/x/stablecoin/client/cli"
-
-	// Cosmos-SDK
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/config"
@@ -24,7 +16,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/server"
 	serverconfig "github.com/cosmos/cosmos-sdk/server/config"
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
-	"github.com/cosmos/cosmos-sdk/simapp"
 	"github.com/cosmos/cosmos-sdk/simapp/params"
 	"github.com/cosmos/cosmos-sdk/snapshots"
 	"github.com/cosmos/cosmos-sdk/store"
@@ -34,14 +25,13 @@ import (
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/cosmos/cosmos-sdk/x/crisis"
 	genutilcli "github.com/cosmos/cosmos-sdk/x/genutil/client/cli"
-
 	"github.com/spf13/cast"
 	"github.com/spf13/cobra"
-
-	// Tendermint
 	tmcli "github.com/tendermint/tendermint/libs/cli"
 	"github.com/tendermint/tendermint/libs/log"
 	dbm "github.com/tendermint/tm-db"
+
+	"github.com/NibiruChain/nibiru/app"
 )
 
 // NewRootCmd creates a new root command for nibid. It is called once in the
@@ -55,14 +45,14 @@ func NewRootCmd() (*cobra.Command, params.EncodingConfig) {
 		WithLegacyAmino(encodingConfig.Amino).
 		WithInput(os.Stdin).
 		WithAccountRetriever(types.AccountRetriever{}).
-		WithHomeDir(simapp.DefaultNodeHome).
+		WithHomeDir(app.DefaultNodeHome).
 		WithViper("") // In simapp, we don't use any prefix for env variables.
 
 	app.SetPrefixes(app.AccountAddressPrefix)
 
 	rootCmd := &cobra.Command{
 		Use:   "nibid",
-		Short: "simulation app",
+		Short: "Nibiru app",
 		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
 			// set the default command outputs
 			cmd.SetOut(cmd.OutOrStdout())
@@ -130,9 +120,7 @@ func initAppConfig() (string, interface{}) {
 	//   own app.toml config,
 	// - if you set srvCfg.MinGasPrices non-empty, validators CAN tweak their
 	//   own app.toml to override, or use this default value.
-	//
-	// In simapp, we set the min gas prices to 0.
-	srvCfg.MinGasPrices = "0stake"
+	srvCfg.MinGasPrices = "0unibi"
 
 	customAppConfig := CustomAppConfig{
 		Config: *srvCfg,
@@ -159,10 +147,11 @@ commands, then builds the rosetta root command given a protocol buffers
 serializer/deserializer.
 
 Args:
-  rootCmd: The root command called once in the 'main.go' of 'nibid'.
-  encodingConfig: EncodingConfig specifies the concrete encoding types to use
-    for a given app. This is provided for compatibility between protobuf and
-    amino implementations.
+
+	rootCmd: The root command called once in the 'main.go' of 'nibid'.
+	encodingConfig: EncodingConfig specifies the concrete encoding types to use
+	  for a given app. This is provided for compatibility between protobuf and
+	  amino implementations.
 */
 func initRootCmd(rootCmd *cobra.Command, encodingConfig params.EncodingConfig) {
 	cfg := sdk.GetConfig()
@@ -170,9 +159,9 @@ func initRootCmd(rootCmd *cobra.Command, encodingConfig params.EncodingConfig) {
 
 	rootCmd.AddCommand(
 		genutilcli.InitCmd(app.ModuleBasics, app.DefaultNodeHome),
-		genutilcli.CollectGenTxsCmd(banktypes.GenesisBalancesIterator{}, simapp.DefaultNodeHome),
+		genutilcli.CollectGenTxsCmd(banktypes.GenesisBalancesIterator{}, app.DefaultNodeHome),
 		genutilcli.MigrateGenesisCmd(),
-		genutilcli.GenTxCmd(app.ModuleBasics, encodingConfig.TxConfig, banktypes.GenesisBalancesIterator{}, simapp.DefaultNodeHome),
+		genutilcli.GenTxCmd(app.ModuleBasics, encodingConfig.TxConfig, banktypes.GenesisBalancesIterator{}, app.DefaultNodeHome),
 		genutilcli.ValidateGenesisCmd(app.ModuleBasics),
 		AddGenesisAccountCmd(app.DefaultNodeHome),
 		tmcli.NewCompletionCmd(rootCmd, true),
@@ -182,18 +171,20 @@ func initRootCmd(rootCmd *cobra.Command, encodingConfig params.EncodingConfig) {
 	)
 
 	a := appCreator{encodingConfig}
-	server.AddCommands(rootCmd, simapp.DefaultNodeHome, a.newApp, a.appExport, addModuleInitFlags)
+	server.AddCommands(rootCmd, app.DefaultNodeHome, a.newApp, a.appExport, addModuleInitFlags)
 
 	// add keybase, auxiliary RPC, query, and tx child commands
 	rootCmd.AddCommand(
 		rpc.StatusCommand(),
 		queryCommand(),
 		txCommand(),
-		keys.Commands(simapp.DefaultNodeHome),
+		keys.Commands(app.DefaultNodeHome),
 	)
 
 	// add rosetta
-	rootCmd.AddCommand(server.RosettaCommand(encodingConfig.InterfaceRegistry, encodingConfig.Marshaler))
+	rootCmd.AddCommand(
+		server.RosettaCommand(
+			encodingConfig.InterfaceRegistry, encodingConfig.Marshaler))
 }
 
 // Implements the servertypes.ModuleInitFlags interface
@@ -217,14 +208,10 @@ func queryCommand() *cobra.Command {
 		rpc.BlockCommand(),
 		authcmd.QueryTxsByEventsCmd(),
 		authcmd.QueryTxCmd(),
-		dexcmd.GetQueryCmd(),
-		pricefeedcmd.GetQueryCmd(),
-		sccmd.GetQueryCmd(),
-		perpcmd.GetQueryCmd(),
 	)
 
 	// Adds all query commands to the 'rootQueryCmd'
-	simapp.ModuleBasics.AddQueryCommands(rootQueryCmd)
+	app.ModuleBasics.AddQueryCommands(rootQueryCmd)
 	rootQueryCmd.PersistentFlags().String(flags.FlagChainID, "", "The network chain ID")
 
 	return rootQueryCmd
@@ -248,13 +235,9 @@ func txCommand() *cobra.Command {
 		authcmd.GetBroadcastCommand(),
 		authcmd.GetEncodeCommand(),
 		authcmd.GetDecodeCommand(),
-		dexcmd.GetTxCmd(),
-		pricefeedcmd.GetTxCmd(),
-		sccmd.GetTxCmd(),
-		perpcmd.GetTxCmd(),
 	)
 
-	simapp.ModuleBasics.AddTxCommands(cmd)
+	app.ModuleBasics.AddTxCommands(cmd)
 	cmd.PersistentFlags().String(flags.FlagChainID, "", "The network chain ID")
 
 	return cmd
@@ -315,23 +298,24 @@ func (a appCreator) newApp(logger log.Logger, db dbm.DB, traceStore io.Writer, a
 // appExport creates a new simapp (optionally at a given height)
 // and exports state.
 func (a appCreator) appExport(
-	logger log.Logger, db dbm.DB, traceStore io.Writer, height int64, forZeroHeight bool, jailAllowedAddrs []string,
-	appOpts servertypes.AppOptions) (servertypes.ExportedApp, error) {
-	var appl *app.NibiruApp
+	logger log.Logger, db dbm.DB, traceStore io.Writer, height int64,
+	forZeroHeight bool, jailAllowedAddrs []string, appOpts servertypes.AppOptions,
+) (servertypes.ExportedApp, error) {
+	var nibiruApp *app.NibiruApp
 	homePath, ok := appOpts.Get(flags.FlagHome).(string)
 	if !ok || homePath == "" {
 		return servertypes.ExportedApp{}, errors.New("application home not set")
 	}
 
 	if height != -1 {
-		appl = app.NewNibiruApp(logger, db, traceStore, false, map[int64]bool{}, homePath, uint(1), a.encCfg, appOpts)
+		nibiruApp = app.NewNibiruApp(logger, db, traceStore, false, map[int64]bool{}, homePath, uint(1), a.encCfg, appOpts)
 
-		if err := appl.LoadHeight(height); err != nil {
+		if err := nibiruApp.LoadHeight(height); err != nil {
 			return servertypes.ExportedApp{}, err
 		}
 	} else {
-		appl = app.NewNibiruApp(logger, db, traceStore, true, map[int64]bool{}, homePath, uint(1), a.encCfg, appOpts)
+		nibiruApp = app.NewNibiruApp(logger, db, traceStore, true, map[int64]bool{}, homePath, uint(1), a.encCfg, appOpts)
 	}
 
-	return appl.ExportAppStateAndValidators(forZeroHeight, jailAllowedAddrs)
+	return nibiruApp.ExportAppStateAndValidators(forZeroHeight, jailAllowedAddrs)
 }

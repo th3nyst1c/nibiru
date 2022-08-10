@@ -6,14 +6,24 @@ import (
 	"github.com/NibiruChain/nibiru/x/common"
 )
 
-// DefaultIndex is the default capability global index
-const DefaultIndex uint64 = 1
-
 // DefaultGenesis returns the default Capability genesis state
 func DefaultGenesis() *GenesisState {
 	return &GenesisState{
-		Params:               DefaultParams(),
-		ModuleAccountBalance: sdk.NewCoin(common.CollDenom, sdk.ZeroInt()),
+		Params:         DefaultParams(),
+		VaultBalance:   []sdk.Coin(nil),
+		PerpEfBalance:  []sdk.Coin(nil),
+		FeePoolBalance: []sdk.Coin(nil),
+		PairMetadata: []*PairMetadata{
+			{
+				Pair: common.PairBTCStable,
+				CumulativePremiumFractions: []sdk.Dec{
+					sdk.ZeroDec(),
+				},
+			},
+		},
+		Positions:            []*Position(nil),
+		PrepaidBadDebts:      []*PrepaidBadDebt(nil),
+		WhitelistedAddresses: []string(nil),
 	}
 }
 

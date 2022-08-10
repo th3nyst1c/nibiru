@@ -7,7 +7,6 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
 	"github.com/NibiruChain/nibiru/x/common"
-	"github.com/NibiruChain/nibiru/x/stablecoin/events"
 	"github.com/NibiruChain/nibiru/x/stablecoin/types"
 )
 
@@ -87,15 +86,15 @@ func (k *Keeper) EvaluateCollRatio(ctx sdk.Context) (err error) {
 	upperBound := params.GetPriceUpperBoundAsDec()
 
 	// Should take TWAP price
-	stablePrice, err := k.PricefeedKeeper.GetCurrentTWAPPrice(
-		ctx, common.StableDenom, common.CollDenom)
+	stablePrice, err := k.PricefeedKeeper.GetCurrentTWAP(
+		ctx, common.DenomStable, common.DenomColl)
 	if err != nil {
 		return err
 	}
 
-	if stablePrice.Price.GTE(upperBound) {
+	if stablePrice.GTE(upperBound) {
 		err = k.updateCollRatio(ctx, true)
-	} else if stablePrice.Price.LTE(lowerBound) {
+	} else if stablePrice.LTE(lowerBound) {
 		err = k.updateCollRatio(ctx, false)
 	}
 	if err != nil {
@@ -115,14 +114,14 @@ func (k *Keeper) StableRequiredForTargetCollRatio(
 	targetCollRatio := k.GetCollRatio(ctx)
 	moduleAddr := k.AccountKeeper.GetModuleAddress(types.ModuleName)
 	moduleCoins := k.BankKeeper.SpendableCoins(ctx, moduleAddr)
-	collDenoms := []string{common.CollDenom}
+	collDenoms := []string{common.DenomColl}
 
 	currentTotalCollUSD := sdk.ZeroDec()
 
 	for _, collDenom := range collDenoms {
 		amtColl := moduleCoins.AmountOf(collDenom)
 		priceColl, err := k.PricefeedKeeper.GetCurrentPrice(
-			ctx, collDenom, common.StableDenom)
+			ctx, collDenom, common.DenomStable)
 		if err != nil {
 			return sdk.ZeroDec(), err
 		}
@@ -140,7 +139,7 @@ func (k *Keeper) RecollateralizeCollAmtForTargetCollRatio(
 ) (neededCollAmount sdk.Int, err error) {
 	neededUSDForRecoll, _ := k.StableRequiredForTargetCollRatio(ctx)
 	priceCollStable, err := k.PricefeedKeeper.GetCurrentPrice(
-		ctx, common.CollDenom, common.StableDenom)
+		ctx, common.DenomColl, common.DenomStable)
 	if err != nil {
 		return sdk.Int{}, err
 	}
@@ -157,16 +156,18 @@ the protocol is below the required amount defined by the current collateral rati
 Nibiru's NUSD stablecoin is taken to be the dollar that determines USD value.
 
 Args:
-  msg (MsgRecollateralize) {
-    Creator (string): Caller of 'Recollateralize'
-	Coll (sdk.Coin): Input collateral that will be sold to the protocol.
-  }
+
+	  msg (MsgRecollateralize) {
+	    Creator (string): Caller of 'Recollateralize'
+		Coll (sdk.Coin): Input collateral that will be sold to the protocol.
+	  }
 
 Returns:
-  response (MsgRecollateralizeResponse) {
-    Gov (sdk.Coin): Governance received as a reward for recollateralizing Nibiru.
-  }
-  err: Error condition for if the function succeeds or fails.
+
+	response (MsgRecollateralizeResponse) {
+	  Gov (sdk.Coin): Governance received as a reward for recollateralizing Nibiru.
+	}
+	err: Error condition for if the function succeeds or fails.
 */
 func (k Keeper) Recollateralize(
 	goCtx context.Context, msg *types.MsgRecollateralize,
@@ -211,16 +212,18 @@ func (k Keeper) Recollateralize(
 	if err != nil {
 		return response, err
 	}
-	events.EmitTransfer(
-		ctx,
-		/* coin */ inColl,
-		/* from */ caller.String(),
-		/* to   */ k.AccountKeeper.GetModuleAddress(types.ModuleName).String(),
-	)
+
+	if err := ctx.EventManager().EmitTypedEvent(&types.EventTransfer{
+		Coin: inColl,
+		From: caller.String(),
+		To:   k.AccountKeeper.GetModuleAddress(types.ModuleName).String(),
+	}); err != nil {
+		return response, err
+	}
 
 	// Compute GOV rewarded to user
 	priceCollStable, err := k.PricefeedKeeper.GetCurrentPrice(
-		ctx, common.CollDenom, common.StableDenom)
+		ctx, common.DenomColl, common.DenomStable)
 	if err != nil {
 		return response, err
 	}
@@ -229,14 +232,18 @@ func (k Keeper) Recollateralize(
 	if err != nil {
 		return response, err
 	}
-	outGov := sdk.NewCoin(common.GovDenom, outGovAmount)
+	outGov := sdk.NewCoin(common.DenomGov, outGovAmount)
 
 	// Mint and send GOV reward from the module to the caller
 	err = k.BankKeeper.MintCoins(ctx, types.ModuleName, sdk.NewCoins(outGov))
 	if err != nil {
 		return response, err
 	}
-	events.EmitMintNIBI(ctx, outGov)
+
+	err = ctx.EventManager().EmitTypedEvent(&types.EventMintNIBI{Amount: outGov.Amount})
+	if err != nil {
+		return response, err
+	}
 
 	err = k.BankKeeper.SendCoinsFromModuleToAccount(
 		ctx, types.ModuleName, caller, sdk.NewCoins(outGov),
@@ -244,19 +251,24 @@ func (k Keeper) Recollateralize(
 	if err != nil {
 		return response, err
 	}
-	events.EmitTransfer(
-		ctx, outGov,
-		/* from */ k.AccountKeeper.GetModuleAddress(types.ModuleName).String(),
-		/* to   */ caller.String(),
-	)
 
-	events.EmitRecollateralize(
-		ctx,
-		/* inCoin    */ inColl,
-		/* outCoin   */ outGov,
-		/* caller    */ caller.String(),
-		/* collRatio */ targetCollRatio,
-	)
+	if err := ctx.EventManager().EmitTypedEvent(&types.EventTransfer{
+		Coin: outGov,
+		From: k.AccountKeeper.GetModuleAddress(types.ModuleName).String(),
+		To:   caller.String(),
+	}); err != nil {
+		return response, err
+	}
+
+	if err := ctx.EventManager().EmitTypedEvent(&types.EventRecollateralize{
+		InCoin:    inColl,
+		OutCoin:   outGov,
+		Caller:    caller.String(),
+		CollRatio: targetCollRatio,
+	}); err != nil {
+		return response, err
+	}
+
 	return &types.MsgRecollateralizeResponse{
 		Gov: outGov,
 	}, err
@@ -267,10 +279,13 @@ GovAmtFromRecollateralize computes the GOV token given as a reward for calling
 recollateralize.
 
 Args:
-  ctx (sdk.Context): Carries information about the current state of the application.
-  inUSD (sdk.Dec): Value in NUSD stablecoin to be used for recollateralization.
+
+	ctx (sdk.Context): Carries information about the current state of the application.
+	inUSD (sdk.Dec): Value in NUSD stablecoin to be used for recollateralization.
+
 Returns:
-  govOut (sdk.Int): Amount of GOV token rewarded for 'Recollateralize'.
+
+	govOut (sdk.Int): Amount of GOV token rewarded for 'Recollateralize'.
 */
 func (k *Keeper) GovAmtFromRecollateralize(
 	ctx sdk.Context, inUSD sdk.Dec,
@@ -279,7 +294,7 @@ func (k *Keeper) GovAmtFromRecollateralize(
 	bonusRate := params.GetBonusRateRecollAsDec()
 
 	priceGovStable, err := k.PricefeedKeeper.GetCurrentPrice(
-		ctx, common.GovDenom, common.StableDenom)
+		ctx, common.DenomGov, common.DenomStable)
 	if err != nil {
 		return sdk.Int{}, err
 	}
@@ -307,11 +322,14 @@ BuybackGovAmtForTargetCollRatio returns the governance tokens that the protocol 
 buyback in order to have the optimal collateral ration.
 
 Args:
-  ctx (sdk.Context): Carries information about the current state of the application.
+
+	ctx (sdk.Context): Carries information about the current state of the application.
+
 Returns:
-  neededGovAmt (sdk.Int): The needed Governance amount that the protocol can buyback in order to
-  achieve the optimal collateral ratio.
-  err (error): The error containing information if something went wrong.
+
+	neededGovAmt (sdk.Int): The needed Governance amount that the protocol can buyback in order to
+	achieve the optimal collateral ratio.
+	err (error): The error containing information if something went wrong.
 */
 func (k *Keeper) BuybackGovAmtForTargetCollRatio(
 	ctx sdk.Context,
@@ -319,7 +337,7 @@ func (k *Keeper) BuybackGovAmtForTargetCollRatio(
 	neededUSDForRecoll, _ := k.StableRequiredForTargetCollRatio(ctx)
 	neededUSDForBuyback := neededUSDForRecoll.Neg()
 	priceGovStable, err := k.PricefeedKeeper.GetCurrentPrice(
-		ctx, common.GovDenom, common.StableDenom)
+		ctx, common.DenomGov, common.DenomStable)
 	if err != nil {
 		return sdk.Int{}, err
 	}
@@ -373,23 +391,30 @@ func (k Keeper) Buyback(
 	if err != nil {
 		return response, err
 	}
-	events.EmitTransfer(
-		ctx,
-		/* coin */ inGov,
-		/* from */ caller.String(),
-		/* to   */ k.AccountKeeper.GetModuleAddress(types.ModuleName).String(),
-	)
+
+	if err := ctx.EventManager().EmitTypedEvent(&types.EventTransfer{
+		Coin: inGov,
+		From: caller.String(),
+		To:   k.AccountKeeper.GetModuleAddress(types.ModuleName).String(),
+	}); err != nil {
+		return response, err
+	}
 
 	// Burn the NIBI that was sent by the caller.
 	err = k.BankKeeper.BurnCoins(ctx, types.ModuleName, sdk.NewCoins(inGov))
 	if err != nil {
 		return response, err
 	}
-	events.EmitBurnNIBI(ctx, inGov)
+
+	err = ctx.EventManager().EmitTypedEvent(
+		&types.EventBurnNIBI{Amount: inGov.Amount})
+	if err != nil {
+		return response, err
+	}
 
 	// Compute USD (stable) value of the GOV sent by the caller: 'inUSD'
 	priceGovStable, err := k.PricefeedKeeper.GetCurrentPrice(
-		ctx, common.GovDenom, common.StableDenom)
+		ctx, common.DenomGov, common.DenomStable)
 	if err != nil {
 		return response, err
 	}
@@ -400,7 +425,7 @@ func (k Keeper) Buyback(
 	if err != nil {
 		return response, err
 	}
-	outColl := sdk.NewCoin(common.CollDenom, outCollAmount)
+	outColl := sdk.NewCoin(common.DenomColl, outCollAmount)
 
 	// Send COLL from the module to the caller
 	err = k.BankKeeper.SendCoinsFromModuleToAccount(
@@ -409,19 +434,24 @@ func (k Keeper) Buyback(
 	if err != nil {
 		return response, err
 	}
-	events.EmitTransfer(
-		ctx, outColl,
-		/* from */ k.AccountKeeper.GetModuleAddress(types.ModuleName).String(),
-		/* to   */ caller.String(),
-	)
 
-	events.EmitBuyback(
-		ctx,
-		/* inCoin    */ inGov,
-		/* outCoin   */ outColl,
-		/* caller    */ caller.String(),
-		/* collRatio */ targetCollRatio,
-	)
+	if err := ctx.EventManager().EmitTypedEvent(&types.EventTransfer{
+		Coin: outColl,
+		From: k.AccountKeeper.GetModuleAddress(types.ModuleName).String(),
+		To:   caller.String(),
+	}); err != nil {
+		return response, err
+	}
+
+	if err := ctx.EventManager().EmitTypedEvent(&types.EventBuyback{
+		InCoin:    inGov,
+		OutCoin:   outColl,
+		Caller:    caller.String(),
+		CollRatio: targetCollRatio,
+	}); err != nil {
+		return response, err
+	}
+
 	return &types.MsgBuybackResponse{
 		Coll: outColl,
 	}, err
@@ -432,16 +462,19 @@ CollAmtFromBuyback computes the COLL (collateral) given as a reward for calling
 buyback.
 
 Args:
-  ctx (sdk.Context): Carries information about the current state of the application.
-  valUSD (sdk.Dec): Value in NUSD stablecoin to be used for buyback.
+
+	ctx (sdk.Context): Carries information about the current state of the application.
+	valUSD (sdk.Dec): Value in NUSD stablecoin to be used for buyback.
+
 Returns:
-  collAmt (sdk.Int): Amount of COLL token rewarded for 'Buyback'.
+
+	collAmt (sdk.Int): Amount of COLL token rewarded for 'Buyback'.
 */
 func (k *Keeper) CollAmtFromBuyback(
 	ctx sdk.Context, valUSD sdk.Dec,
 ) (collAmt sdk.Int, err error) {
 	priceCollStable, err := k.PricefeedKeeper.GetCurrentPrice(
-		ctx, common.CollDenom, common.StableDenom)
+		ctx, common.DenomColl, common.DenomStable)
 	if err != nil {
 		return sdk.Int{}, err
 	}
@@ -450,7 +483,7 @@ func (k *Keeper) CollAmtFromBuyback(
 	return collAmt, err
 }
 
-// TODO hygiene: cover with test cases
+// TODO hygiene: cover with test cases | https://github.com/NibiruChain/nibiru/issues/537
 func (k *Keeper) CollAmtFromFullBuyback(
 	ctx sdk.Context,
 ) (collAmt sdk.Int, err error) {

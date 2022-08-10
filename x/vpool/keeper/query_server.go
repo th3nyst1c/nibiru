@@ -23,7 +23,7 @@ var _ types.QueryServer = queryServer{}
 
 func (q queryServer) ReserveAssets(
 	goCtx context.Context,
-	req *types.QueryReserveAssetsRequests,
+	req *types.QueryReserveAssetsRequest,
 ) (resp *types.QueryReserveAssetsResponse, err error) {
 	if req == nil {
 		return nil, status.Error(codes.InvalidArgument, "invalid request")
@@ -31,7 +31,7 @@ func (q queryServer) ReserveAssets(
 
 	ctx := sdk.UnwrapSDKContext(goCtx)
 
-	tokenPair, err := common.NewTokenPairFromStr(req.Pair)
+	tokenPair, err := common.NewAssetPair(req.Pair)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
@@ -44,5 +44,60 @@ func (q queryServer) ReserveAssets(
 	return &types.QueryReserveAssetsResponse{
 		BaseAssetReserve:  pool.BaseAssetReserve,
 		QuoteAssetReserve: pool.QuoteAssetReserve,
+	}, nil
+}
+
+func (q queryServer) AllPools(
+	goCtx context.Context,
+	req *types.QueryAllPoolsRequest,
+) (resp *types.QueryAllPoolsResponse, err error) {
+	if req == nil {
+		return nil, status.Error(codes.InvalidArgument, "invalid request")
+	}
+
+	ctx := sdk.UnwrapSDKContext(goCtx)
+
+	pools := q.GetAllPools(ctx)
+	if err != nil {
+		return nil, err
+	}
+	var pricesForPools []types.PoolPrices
+	for _, pool := range pools {
+		pricesForPools = append(pricesForPools, q.GetPoolPrices(ctx, *pool))
+	}
+
+	return &types.QueryAllPoolsResponse{
+		Pools:  pools,
+		Prices: pricesForPools,
+	}, nil
+}
+
+func (q queryServer) BaseAssetPrice(
+	goCtx context.Context,
+	req *types.QueryBaseAssetPriceRequest,
+) (resp *types.QueryBaseAssetPriceResponse, err error) {
+	if req == nil {
+		return nil, status.Error(codes.InvalidArgument, "invalid request")
+	}
+
+	ctx := sdk.UnwrapSDKContext(goCtx)
+
+	pair, err := common.NewAssetPair(req.Pair)
+	if err != nil {
+		return nil, err
+	}
+
+	priceInQuoteDenom, err := q.GetBaseAssetPrice(
+		ctx,
+		pair,
+		req.Direction,
+		req.BaseAssetAmount,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return &types.QueryBaseAssetPriceResponse{
+		PriceInQuoteDenom: priceInQuoteDenom,
 	}, nil
 }

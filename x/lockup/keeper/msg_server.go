@@ -2,8 +2,11 @@ package keeper
 
 import (
 	"context"
+	"fmt"
 
+	"github.com/cosmos/cosmos-sdk/store/prefix"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/types/query"
 
 	"github.com/NibiruChain/nibiru/x/lockup/types"
 )
@@ -19,9 +22,20 @@ type msgServer struct {
 	keeper Keeper
 }
 
+func (s msgServer) Unlock(ctx context.Context, unlock *types.MsgUnlock) (*types.MsgUnlockResponse, error) {
+	sdkCtx := sdk.UnwrapSDKContext(ctx)
+
+	_, err := s.keeper.UnlockTokens(sdkCtx, unlock.LockId)
+	if err != nil {
+		return nil, err
+	}
+
+	return &types.MsgUnlockResponse{}, nil
+}
+
 var _ types.MsgServer = msgServer{}
 
-func (server msgServer) LockTokens(goCtx context.Context, msg *types.MsgLockTokens) (*types.MsgLockTokensResponse, error) {
+func (s msgServer) LockTokens(goCtx context.Context, msg *types.MsgLockTokens) (*types.MsgLockTokensResponse, error) {
 	ctx := sdk.UnwrapSDKContext(goCtx)
 
 	addr, err := sdk.AccAddressFromBech32(msg.Owner)
@@ -29,7 +43,7 @@ func (server msgServer) LockTokens(goCtx context.Context, msg *types.MsgLockToke
 		return nil, err
 	}
 
-	lockID, err := server.keeper.LockTokens(ctx, addr, msg.Coins, msg.Duration)
+	lockID, err := s.keeper.LockTokens(ctx, addr, msg.Coins, msg.Duration)
 	if err != nil {
 		return nil, err
 	}
@@ -37,10 +51,10 @@ func (server msgServer) LockTokens(goCtx context.Context, msg *types.MsgLockToke
 	return &types.MsgLockTokensResponse{LockId: lockID.LockId}, nil
 }
 
-func (server msgServer) InitiateUnlock(ctx context.Context, unlock *types.MsgInitiateUnlock) (*types.MsgInitiateUnlockResponse, error) {
+func (s msgServer) InitiateUnlock(ctx context.Context, unlock *types.MsgInitiateUnlock) (*types.MsgInitiateUnlockResponse, error) {
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
 
-	_, err := server.keeper.UnlockTokens(sdkCtx, unlock.LockId)
+	_, err := s.keeper.InitiateUnlocking(sdkCtx, unlock.LockId)
 	return &types.MsgInitiateUnlockResponse{}, err
 }
 
@@ -60,18 +74,28 @@ func (q queryServer) LocksByAddress(ctx context.Context, address *types.QueryLoc
 		return nil, err
 	}
 
-	var locks []*types.Lock
 	state := q.k.LocksState(sdkCtx)
-	state.IterateLocksByAddress(addr, func(id uint64) (stop bool) {
-		lock, err := state.Get(id)
-		if err != nil {
-			panic(err)
+
+	key := state.keyAddr(addr.String(), nil)
+	store := prefix.NewStore(state.addrIndex, key)
+
+	var locks []*types.Lock
+	res, err := query.Paginate(store, address.Pagination, func(key []byte, _ []byte) error {
+		value := state.locks.Get(key)
+		if value == nil {
+			panic(fmt.Errorf("state corruption cannot find key: %x", key))
 		}
+		lock := new(types.Lock)
+		q.k.cdc.MustUnmarshal(value, lock)
 		locks = append(locks, lock)
-		return false
+		return nil
 	})
 
-	return &types.QueryLocksByAddressResponse{Locks: locks}, nil
+	if err != nil {
+		return nil, err
+	}
+
+	return &types.QueryLocksByAddressResponse{Locks: locks, Pagination: res}, nil
 }
 
 func (q queryServer) LockedCoins(ctx context.Context, request *types.QueryLockedCoinsRequest) (*types.QueryLockedCoinsResponse, error) {

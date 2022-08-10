@@ -4,13 +4,12 @@ import (
 	"testing"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/NibiruChain/nibiru/x/common"
 	"github.com/NibiruChain/nibiru/x/perp/types"
-	"github.com/NibiruChain/nibiru/x/testutil"
 	"github.com/NibiruChain/nibiru/x/testutil/sample"
+	"github.com/NibiruChain/nibiru/x/testutil/testapp"
 )
 
 func TestCalcRemainMarginWithFundingPayment(t *testing.T) {
@@ -21,62 +20,53 @@ func TestCalcRemainMarginWithFundingPayment(t *testing.T) {
 		{
 			name: "get - no positions set raises vpool not found error",
 			test: func() {
-				nibiruApp, ctx := testutil.NewNibiruApp(true)
+				nibiruApp, ctx := testapp.NewNibiruAppAndContext(true)
 
 				marginDelta := sdk.OneDec()
 				_, err := nibiruApp.PerpKeeper.CalcRemainMarginWithFundingPayment(
 					ctx, types.Position{
-						Pair: "osmo:nusd",
+						Pair: common.PairGovStable,
 					}, marginDelta)
 				require.Error(t, err)
-				require.ErrorContains(t, err, types.ErrPairNotFound.Error())
-			},
-		},
-		{
-			name: "fail - invalid token pair passed to calculation",
-			test: func() {
-				nibiruApp, ctx := testutil.NewNibiruApp(true)
-
-				the3pool := "dai:usdc:usdt"
-				marginDelta := sdk.OneDec()
-				_, err := nibiruApp.PerpKeeper.CalcRemainMarginWithFundingPayment(
-					ctx, types.Position{Pair: the3pool}, marginDelta)
-				require.Error(t, err)
-				require.ErrorContains(t, err, types.ErrPairNotFound.Error())
+				require.ErrorContains(t, err, types.ErrPairMetadataNotFound.Error())
 			},
 		},
 		{
 			name: "signedRemainMargin negative bc of marginDelta",
 			test: func() {
 				t.Log("Setup Nibiru app, pair, and trader")
-				nibiruApp, ctx := testutil.NewNibiruApp(true)
-				alice := sample.AccAddress()
-				pair := common.TokenPair("osmo:nusd")
+				nibiruApp, ctx := testapp.NewNibiruAppAndContext(true)
+				trader := sample.AccAddress()
+				pair := common.MustNewAssetPair("osmo:nusd")
 
 				t.Log("Set vpool defined by pair on VpoolKeeper")
 				vpoolKeeper := &nibiruApp.VpoolKeeper
 				vpoolKeeper.CreatePool(
 					ctx,
-					pair.String(),
+					pair,
 					sdk.MustNewDecFromStr("0.9"), // 0.9 ratio
 					/* y */ sdk.NewDec(1_000_000), //
 					/* x */ sdk.NewDec(1_000_000), //
-					/* fluctLim */ sdk.MustNewDecFromStr("1.0"), // 100%
+					/* fluctuationLimit */ sdk.MustNewDecFromStr("1.0"), // 100%
 					/* maxOracleSpreadRatio */ sdk.MustNewDecFromStr("1.0"), // 100%
+					/* maintenanceMarginRatio */ sdk.MustNewDecFromStr("0.0625"),
+					/* maxLeverage */ sdk.MustNewDecFromStr("15"),
 				)
 				premiumFractions := []sdk.Dec{sdk.ZeroDec()} // fPayment -> 0
 				require.True(t, vpoolKeeper.ExistsPool(ctx, pair))
 
 				t.Log("Set vpool defined by pair on PerpKeeper")
 				perpKeeper := &nibiruApp.PerpKeeper
-				perpKeeper.PairMetadata().Set(ctx, &types.PairMetadata{
-					Pair:                       pair.String(),
+				perpKeeper.PairMetadataState(ctx).Set(&types.PairMetadata{
+					Pair:                       pair,
 					CumulativePremiumFractions: premiumFractions,
 				})
 
 				pos := &types.Position{
-					Address: alice.String(), Pair: pair.String(),
-					Margin: sdk.NewDec(100), Size_: sdk.NewDec(200),
+					TraderAddress:                       trader.String(),
+					Pair:                                pair,
+					Margin:                              sdk.NewDec(100),
+					Size_:                               sdk.NewDec(200),
 					LastUpdateCumulativePremiumFraction: premiumFractions[0],
 				}
 
@@ -98,20 +88,22 @@ func TestCalcRemainMarginWithFundingPayment(t *testing.T) {
 			name: "large fPayment lowers pos value by half",
 			test: func() {
 				t.Log("Setup Nibiru app, pair, and trader")
-				nibiruApp, ctx := testutil.NewNibiruApp(true)
-				alice := sample.AccAddress()
-				pair := common.TokenPair("osmo:nusd")
+				nibiruApp, ctx := testapp.NewNibiruAppAndContext(true)
+				trader := sample.AccAddress()
+				pair := common.MustNewAssetPair("osmo:nusd")
 
 				t.Log("Set vpool defined by pair on VpoolKeeper")
 				vpoolKeeper := &nibiruApp.VpoolKeeper
 				vpoolKeeper.CreatePool(
 					ctx,
-					pair.String(),
+					pair,
 					sdk.MustNewDecFromStr("0.9"), // 0.9 ratio
 					/* y */ sdk.NewDec(1_000_000), //
 					/* x */ sdk.NewDec(1_000_000), //
-					/* fluctLim */ sdk.MustNewDecFromStr("1.0"), // 100%
+					/* fluctuationLimit */ sdk.MustNewDecFromStr("1.0"), // 100%
 					/* maxOracleSpreadRatio */ sdk.MustNewDecFromStr("1.0"), // 100%
+					/* maintenanceMarginRatio */ sdk.MustNewDecFromStr("0.0625"),
+					/* maxLeverage */ sdk.MustNewDecFromStr("15"),
 				)
 				premiumFractions := []sdk.Dec{
 					sdk.MustNewDecFromStr("0.25"),
@@ -122,14 +114,16 @@ func TestCalcRemainMarginWithFundingPayment(t *testing.T) {
 
 				t.Log("Set vpool defined by pair on PerpKeeper")
 				perpKeeper := &nibiruApp.PerpKeeper
-				perpKeeper.PairMetadata().Set(ctx, &types.PairMetadata{
-					Pair:                       pair.String(),
+				perpKeeper.PairMetadataState(ctx).Set(&types.PairMetadata{
+					Pair:                       pair,
 					CumulativePremiumFractions: premiumFractions,
 				})
 
 				pos := &types.Position{
-					Address: alice.String(), Pair: pair.String(),
-					Margin: sdk.NewDec(100), Size_: sdk.NewDec(200),
+					TraderAddress:                       trader.String(),
+					Pair:                                pair,
+					Margin:                              sdk.NewDec(100),
+					Size_:                               sdk.NewDec(200),
 					LastUpdateCumulativePremiumFraction: premiumFractions[1],
 				}
 
@@ -161,32 +155,4 @@ func TestCalcRemainMarginWithFundingPayment(t *testing.T) {
 			tc.test()
 		})
 	}
-}
-
-func TestCalcPerpTxFee(t *testing.T) {
-	nibiruApp, ctx := testutil.NewNibiruApp(true)
-	perpKeeper := &nibiruApp.PerpKeeper
-
-	currentParams := perpKeeper.GetParams(ctx)
-	require.Equal(t, types.DefaultParams(), currentParams)
-
-	currentParams = types.NewParams(
-		currentParams.Stopped,
-		currentParams.MaintenanceMarginRatio,
-		/*TollRatio=*/ sdk.MustNewDecFromStr("0.01"),
-		/*SpreadRatio=*/ sdk.MustNewDecFromStr("0.0123"),
-		/*liquidationFee=*/ sdk.MustNewDecFromStr("0.01"),
-		/*partialLiquidationRatio=*/ sdk.MustNewDecFromStr("0.4"),
-	)
-	perpKeeper.SetParams(ctx, currentParams)
-
-	params := perpKeeper.GetParams(ctx)
-	assert.Equal(t, sdk.MustNewDecFromStr("0.01"), params.GetTollRatioAsDec())
-	assert.Equal(t, sdk.MustNewDecFromStr("0.0123"), params.GetSpreadRatioAsDec())
-
-	// Ensure calculation is correct
-	toll, spread, err := perpKeeper.CalcPerpTxFee(ctx, sdk.NewDec(1_000_000))
-	require.NoError(t, err)
-	assert.Equal(t, sdk.NewInt(10_000), toll)
-	assert.Equal(t, sdk.NewInt(12_300), spread)
 }

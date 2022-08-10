@@ -2,7 +2,6 @@ package keeper
 
 import (
 	"fmt"
-	"time"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
@@ -10,12 +9,23 @@ import (
 	"github.com/NibiruChain/nibiru/x/vpool/types"
 )
 
-// addReserveSnapshot adds a snapshot of the current pool status and blocktime and blocknum.
-func (k Keeper) addReserveSnapshot(
+/*
+*
+updateSnapshot updates the snapshot of the current vpool.
+It creates a new one if the current block height is greater than the previous snapshot's block height.
+Otherwise, it updates the latest snapshot in state.
+
+args:
+  - ctx: the cosmos-sdk context
+  - pair: the asset pair
+  - quoteReserve: the amount of quote assets in the vpool
+  - baseReserve: the amount of base assets in the vpool
+*/
+func (k Keeper) updateSnapshot(
 	ctx sdk.Context,
-	pair common.TokenPair,
-	quoteAssetReserve sdk.Dec,
-	baseAssetReserve sdk.Dec,
+	pair common.AssetPair,
+	quoteReserve sdk.Dec,
+	baseReserve sdk.Dec,
 ) error {
 	lastSnapshot, lastCounter, err := k.getLatestReserveSnapshot(ctx, pair)
 	if err != nil {
@@ -23,27 +33,22 @@ func (k Keeper) addReserveSnapshot(
 	}
 
 	if ctx.BlockHeight() == lastSnapshot.BlockNumber {
-		k.saveSnapshot(ctx, pair, lastCounter, quoteAssetReserve, baseAssetReserve, ctx.BlockTime(), ctx.BlockHeight())
+		k.saveSnapshot(ctx, pair, lastCounter, quoteReserve, baseReserve)
 	} else {
 		newCounter := lastCounter + 1
-		k.saveSnapshot(ctx, pair, newCounter, quoteAssetReserve, baseAssetReserve, ctx.BlockTime(), ctx.BlockHeight())
+		k.saveSnapshot(ctx, pair, newCounter, quoteReserve, baseReserve)
 		k.saveSnapshotCounter(ctx, pair, newCounter)
 	}
 
-	ctx.EventManager().EmitEvent(
-		sdk.NewEvent(
-			types.EventSnapshotSaved,
-			sdk.NewAttribute(types.AttributeBlockHeight, fmt.Sprintf("%d", ctx.BlockHeight())),
-			sdk.NewAttribute(types.AttributeQuoteReserve, quoteAssetReserve.String()),
-			sdk.NewAttribute(types.AttributeBaseReserve, baseAssetReserve.String()),
-		),
-	)
-
-	return nil
+	return ctx.EventManager().EmitTypedEvent(&types.ReserveSnapshotSavedEvent{
+		Pair:         pair.String(),
+		QuoteReserve: quoteReserve,
+		BaseReserve:  baseReserve,
+	})
 }
 
 // getSnapshot returns the snapshot saved by counter num
-func (k Keeper) getSnapshot(ctx sdk.Context, pair common.TokenPair, counter uint64) (
+func (k Keeper) getSnapshot(ctx sdk.Context, pair common.AssetPair, counter uint64) (
 	snapshot types.ReserveSnapshot, err error,
 ) {
 	bz := ctx.KVStore(k.storeKey).Get(types.GetSnapshotKey(pair, counter))
@@ -59,19 +64,16 @@ func (k Keeper) getSnapshot(ctx sdk.Context, pair common.TokenPair, counter uint
 
 func (k Keeper) saveSnapshot(
 	ctx sdk.Context,
-	pair common.TokenPair,
+	pair common.AssetPair,
 	counter uint64,
 	quoteAssetReserve sdk.Dec,
 	baseAssetReserve sdk.Dec,
-	timestamp time.Time,
-	blockNumber int64,
-
 ) {
 	snapshot := &types.ReserveSnapshot{
 		BaseAssetReserve:  baseAssetReserve,
 		QuoteAssetReserve: quoteAssetReserve,
-		TimestampMs:       timestamp.UnixMilli(),
-		BlockNumber:       blockNumber,
+		TimestampMs:       ctx.BlockTime().UnixMilli(),
+		BlockNumber:       ctx.BlockHeight(),
 	}
 
 	ctx.KVStore(k.storeKey).Set(
@@ -81,7 +83,7 @@ func (k Keeper) saveSnapshot(
 }
 
 // getSnapshotCounter returns the counter and if it has been found or not.
-func (k Keeper) getSnapshotCounter(ctx sdk.Context, pair common.TokenPair) (
+func (k Keeper) getSnapshotCounter(ctx sdk.Context, pair common.AssetPair) (
 	snapshotCounter uint64, found bool,
 ) {
 	bz := ctx.KVStore(k.storeKey).Get(types.GetSnapshotCounterKey(pair))
@@ -94,7 +96,7 @@ func (k Keeper) getSnapshotCounter(ctx sdk.Context, pair common.TokenPair) (
 
 func (k Keeper) saveSnapshotCounter(
 	ctx sdk.Context,
-	pair common.TokenPair,
+	pair common.AssetPair,
 	counter uint64,
 ) {
 	ctx.KVStore(k.storeKey).Set(
@@ -104,7 +106,7 @@ func (k Keeper) saveSnapshotCounter(
 }
 
 // getLatestReserveSnapshot returns the last snapshot that was saved
-func (k Keeper) getLatestReserveSnapshot(ctx sdk.Context, pair common.TokenPair) (
+func (k Keeper) getLatestReserveSnapshot(ctx sdk.Context, pair common.AssetPair) (
 	snapshot types.ReserveSnapshot, counter uint64, err error,
 ) {
 	counter, found := k.getSnapshotCounter(ctx, pair)
@@ -130,7 +132,7 @@ BASE_ASSET_SWAP: price when swapping x amount of base assets
 */
 type snapshotPriceOptions struct {
 	// required
-	pair           common.TokenPair
+	pair           common.AssetPair
 	twapCalcOption types.TwapCalcOption
 
 	// required only if twapCalcOption == QUOTE_ASSET_SWAP or BASE_ASSET_SWAP
@@ -142,7 +144,7 @@ type snapshotPriceOptions struct {
 Pure function that returns a price from a snapshot.
 
 Can choose from three types of calc options: SPOT, QUOTE_ASSET_SWAP, and BASE_ASSET_SWAP.
-QUOTE_ASSET_SWAP and BASE_ASSET_SWAP require the `direction`` and `assetAmount`` args.
+QUOTE_ASSET_SWAP and BASE_ASSET_SWAP require the `direction“ and `assetAmount“ args.
 SPOT does not require `direction` and `assetAmount`.
 
 args:
@@ -166,23 +168,27 @@ func getPriceWithSnapshot(
 
 	case types.TwapCalcOption_QUOTE_ASSET_SWAP:
 		pool := types.NewPool(
-			snapshotPriceOpts.pair.String(),
+			snapshotPriceOpts.pair,
 			sdk.OneDec(),
 			snapshot.QuoteAssetReserve,
 			snapshot.BaseAssetReserve,
 			sdk.OneDec(),
 			sdk.MustNewDecFromStr("0.3"),
+			sdk.MustNewDecFromStr("0.0625"),
+			sdk.MustNewDecFromStr("15"),
 		)
 		return pool.GetBaseAmountByQuoteAmount(snapshotPriceOpts.direction, snapshotPriceOpts.assetAmount)
 
 	case types.TwapCalcOption_BASE_ASSET_SWAP:
 		pool := types.NewPool(
-			snapshotPriceOpts.pair.String(),
+			snapshotPriceOpts.pair,
 			sdk.OneDec(),
 			snapshot.QuoteAssetReserve,
 			snapshot.BaseAssetReserve,
 			sdk.OneDec(),
 			sdk.MustNewDecFromStr("0.3"),
+			sdk.MustNewDecFromStr("0.0625"),
+			sdk.MustNewDecFromStr("15"),
 		)
 		return pool.GetQuoteAmountByBaseAmount(snapshotPriceOpts.direction, snapshotPriceOpts.assetAmount)
 	}

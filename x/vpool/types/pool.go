@@ -2,23 +2,29 @@ package types
 
 import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
+
+	"github.com/NibiruChain/nibiru/x/common"
 )
 
 func NewPool(
-	pair string,
+	pair common.AssetPair,
 	tradeLimitRatio sdk.Dec,
 	quoteAssetReserve sdk.Dec,
 	baseAssetReserve sdk.Dec,
 	fluctuationLimitRatio sdk.Dec,
 	maxOracleSpreadRatio sdk.Dec,
+	maintenanceMarginRatio sdk.Dec,
+	maxLeverage sdk.Dec,
 ) *Pool {
 	return &Pool{
-		Pair:                  pair,
-		BaseAssetReserve:      baseAssetReserve,
-		QuoteAssetReserve:     quoteAssetReserve,
-		TradeLimitRatio:       tradeLimitRatio,
-		FluctuationLimitRatio: fluctuationLimitRatio,
-		MaxOracleSpreadRatio:  maxOracleSpreadRatio,
+		Pair:                   pair,
+		BaseAssetReserve:       baseAssetReserve,
+		QuoteAssetReserve:      quoteAssetReserve,
+		TradeLimitRatio:        tradeLimitRatio,
+		FluctuationLimitRatio:  fluctuationLimitRatio,
+		MaxOracleSpreadRatio:   maxOracleSpreadRatio,
+		MaintenanceMarginRatio: maintenanceMarginRatio,
+		MaxLeverage:            maxLeverage,
 	}
 }
 
@@ -44,7 +50,7 @@ args:
 
 ret:
   - baseAmountOut: the amount of base assets required to make this hypothetical swap
-				   always an absolute value
+    always an absolute value
   - err: error
 */
 func (p *Pool) GetBaseAmountByQuoteAmount(
@@ -84,7 +90,7 @@ args:
 
 ret:
   - quoteAmountOut: the amount of quote assets required to make this hypothetical swap
-					always an absolute value
+    always an absolute value
   - err: error
 */
 func (p *Pool) GetQuoteAmountByBaseAmount(
@@ -133,4 +139,25 @@ func (p *Pool) IncreaseQuoteAssetReserve(amount sdk.Dec) {
 // DecreaseQuoteAssetReserve decreases the base reserve by amount
 func (p *Pool) DecreaseQuoteAssetReserve(amount sdk.Dec) {
 	p.QuoteAssetReserve = p.QuoteAssetReserve.Sub(amount)
+}
+
+/*
+NewCurrentTWAP returns an instance of CurrentTWAP
+
+Args:
+
+	token0 (string):
+	token1 (string):
+	price (sdk.Dec): Price in units of token1 / token0
+
+Returns:
+
+	(CurrentTWAP): Current TWAP price for the asset pair.
+*/
+func NewCurrentTWAP(token0 string, token1 string, numerator sdk.Dec, denominator sdk.Dec, price sdk.Dec) CurrentTWAP {
+	assetPair := common.AssetPair{Token0: token0, Token1: token1}
+	if err := assetPair.Validate(); err != nil {
+		panic(err)
+	}
+	return CurrentTWAP{PairID: assetPair.String(), Numerator: numerator, Denominator: denominator, Price: price}
 }

@@ -16,8 +16,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
 
-	// "github.com/NibiruChain/nibiru/x/vpool/client/cli"
-	"github.com/NibiruChain/nibiru/x/dex/client/cli"
+	"github.com/NibiruChain/nibiru/x/vpool/client/cli"
 	"github.com/NibiruChain/nibiru/x/vpool/keeper"
 	"github.com/NibiruChain/nibiru/x/vpool/types"
 )
@@ -85,7 +84,7 @@ func (AppModuleBasic) RegisterGRPCGatewayRoutes(clientCtx client.Context, mux *r
 
 // GetTxCmd returns the capability module's root tx command.
 func (a AppModuleBasic) GetTxCmd() *cobra.Command {
-	return cli.GetTxCmd()
+	return nil
 }
 
 // GetQueryCmd returns the capability module's root query command.
@@ -138,6 +137,7 @@ func (am AppModule) LegacyQuerierHandler(legacyQuerierCdc *codec.LegacyAmino) sd
 // RegisterServices registers a GRPC query service to respond to the
 // module-specific GRPC queries.
 func (am AppModule) RegisterServices(cfg module.Configurator) {
+	types.RegisterQueryServer(cfg.QueryServer(), keeper.NewQuerier(am.keeper))
 	// types.RegisterQueryServer(cfg.QueryServer(), keeper.NewQuerier(am.keeper))
 }
 
@@ -170,6 +170,12 @@ func (am AppModule) BeginBlock(_ sdk.Context, _ abci.RequestBeginBlock) {}
 
 // EndBlock executes all ABCI EndBlock logic respective to the capability module. It
 // returns no validator updates.
-func (am AppModule) EndBlock(_ sdk.Context, _ abci.RequestEndBlock) []abci.ValidatorUpdate {
+func (am AppModule) EndBlock(ctx sdk.Context, _ abci.RequestEndBlock) []abci.ValidatorUpdate {
+	for _, pool := range am.keeper.GetAllPools(ctx) {
+		assetPair := pool.Pair.String()
+		if err := am.keeper.UpdateTWAP(ctx, assetPair); err != nil {
+			ctx.Logger().Error("failed to update TWAP", "assetPair", assetPair, "error", err)
+		}
+	}
 	return []abci.ValidatorUpdate{}
 }

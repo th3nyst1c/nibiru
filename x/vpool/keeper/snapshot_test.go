@@ -21,14 +21,14 @@ func TestKeeper_saveOrGetReserveSnapshotFailsIfNotSnapshotSavedBefore(t *testing
 
 	pool := getSamplePool()
 
-	err := vpoolKeeper.addReserveSnapshot(ctx, common.TokenPair(pool.Pair), pool.QuoteAssetReserve, pool.BaseAssetReserve)
+	err := vpoolKeeper.updateSnapshot(ctx, pool.Pair, pool.QuoteAssetReserve, pool.BaseAssetReserve)
 	require.Error(t, err, types.ErrNoLastSnapshotSaved)
 
-	_, _, err = vpoolKeeper.getLatestReserveSnapshot(ctx, NUSDPair)
+	_, _, err = vpoolKeeper.getLatestReserveSnapshot(ctx, common.PairBTCStable)
 	require.Error(t, err, types.ErrNoLastSnapshotSaved)
 }
 
-func TestKeeper_SaveSnapshot(t *testing.T) {
+func TestSaveSnapshot(t *testing.T) {
 	expectedTime := tmtime.Now()
 	expectedBlockHeight := int64(123)
 	pool := getSamplePool()
@@ -44,16 +44,16 @@ func TestKeeper_SaveSnapshot(t *testing.T) {
 		mock.NewMockPricefeedKeeper(gomock.NewController(t)),
 	)
 	ctx = ctx.WithBlockHeight(expectedBlockHeight).WithBlockTime(expectedTime)
-	vpoolKeeper.saveSnapshot(ctx, common.TokenPair(pool.Pair), 0, pool.QuoteAssetReserve, pool.BaseAssetReserve, expectedTime, expectedBlockHeight)
-	vpoolKeeper.saveSnapshotCounter(ctx, common.TokenPair(pool.Pair), 0)
+	vpoolKeeper.saveSnapshot(ctx, pool.Pair, 0, pool.QuoteAssetReserve, pool.BaseAssetReserve)
+	vpoolKeeper.saveSnapshotCounter(ctx, pool.Pair, 0)
 
-	snapshot, counter, err := vpoolKeeper.getLatestReserveSnapshot(ctx, NUSDPair)
+	snapshot, counter, err := vpoolKeeper.getLatestReserveSnapshot(ctx, common.PairBTCStable)
 	require.NoError(t, err)
 	require.Equal(t, expectedSnapshot, snapshot)
 	require.Equal(t, uint64(0), counter)
 }
 
-func TestNewKeeper_getSnapshot(t *testing.T) {
+func TestGetSnapshot(t *testing.T) {
 	vpoolKeeper, ctx := VpoolKeeper(t,
 		mock.NewMockPricefeedKeeper(gomock.NewController(t)),
 	)
@@ -74,18 +74,15 @@ func TestNewKeeper_getSnapshot(t *testing.T) {
 	t.Log("Save snapshot 0")
 	vpoolKeeper.saveSnapshot(
 		ctx,
-		common.TokenPair(pool.Pair),
+		pool.Pair,
 		0,
 		pool.QuoteAssetReserve,
 		pool.BaseAssetReserve,
-		expectedTime,
-		expectedHeight,
 	)
-	vpoolKeeper.saveSnapshotCounter(ctx, common.TokenPair(pool.Pair), 0)
+	vpoolKeeper.saveSnapshotCounter(ctx, pool.Pair, 0)
 
 	t.Log("Check snapshot 0")
-	requireLastSnapshotCounterEqual(t, ctx, vpoolKeeper, pool, 0)
-	oldSnapshot, counter, err := vpoolKeeper.getLatestReserveSnapshot(ctx, common.TokenPair(pool.Pair))
+	oldSnapshot, counter, err := vpoolKeeper.getLatestReserveSnapshot(ctx, pool.Pair)
 	require.NoError(t, err)
 	require.Equal(t, firstSnapshot, oldSnapshot)
 	require.Equal(t, uint64(0), counter)
@@ -96,33 +93,26 @@ func TestNewKeeper_getSnapshot(t *testing.T) {
 	differentSnapshot.BlockNumber = expectedHeight + 1
 	differentSnapshot.TimestampMs = expectedTime.Add(time.Second).UnixMilli()
 	pool.BaseAssetReserve = differentSnapshot.BaseAssetReserve
+	ctx = ctx.WithBlockHeight(expectedHeight + 1).WithBlockTime(expectedTime.Add(time.Second))
 	vpoolKeeper.saveSnapshot(
 		ctx,
-		common.TokenPair(pool.Pair),
+		pool.Pair,
 		1,
 		pool.QuoteAssetReserve,
 		pool.BaseAssetReserve,
-		time.UnixMilli(differentSnapshot.TimestampMs),
-		differentSnapshot.BlockNumber,
 	)
 
 	t.Log("Fetch snapshot 1")
-	newSnapshot, err := vpoolKeeper.getSnapshot(ctx, common.TokenPair(pool.Pair), 1)
+	newSnapshot, err := vpoolKeeper.getSnapshot(ctx, pool.Pair, 1)
 	require.NoError(t, err)
 	require.Equal(t, differentSnapshot, newSnapshot)
 	require.NotEqual(t, differentSnapshot, oldSnapshot)
 }
 
-func requireLastSnapshotCounterEqual(t *testing.T, ctx sdk.Context, keeper Keeper, pool *types.Pool, counter uint64) {
-	c, found := keeper.getSnapshotCounter(ctx, common.TokenPair(pool.Pair))
-	require.True(t, found)
-	require.Equal(t, counter, c)
-}
-
 func TestGetSnapshotPrice(t *testing.T) {
 	tests := []struct {
 		name              string
-		pair              common.TokenPair
+		pair              common.AssetPair
 		quoteAssetReserve sdk.Dec
 		baseAssetReserve  sdk.Dec
 		twapCalcOption    types.TwapCalcOption
@@ -132,7 +122,7 @@ func TestGetSnapshotPrice(t *testing.T) {
 	}{
 		{
 			name:              "spot price calc",
-			pair:              common.TokenPair("btc:nusd"),
+			pair:              common.PairBTCStable,
 			quoteAssetReserve: sdk.NewDec(40_000),
 			baseAssetReserve:  sdk.NewDec(2),
 			twapCalcOption:    types.TwapCalcOption_SPOT,
@@ -140,7 +130,7 @@ func TestGetSnapshotPrice(t *testing.T) {
 		},
 		{
 			name:              "quote asset swap add to pool calc",
-			pair:              common.TokenPair("btc:nusd"),
+			pair:              common.PairBTCStable,
 			quoteAssetReserve: sdk.NewDec(3_000),
 			baseAssetReserve:  sdk.NewDec(1_000),
 			twapCalcOption:    types.TwapCalcOption_QUOTE_ASSET_SWAP,
@@ -150,7 +140,7 @@ func TestGetSnapshotPrice(t *testing.T) {
 		},
 		{
 			name:              "quote asset swap remove from pool calc",
-			pair:              common.TokenPair("btc:nusd"),
+			pair:              common.PairBTCStable,
 			quoteAssetReserve: sdk.NewDec(3_000),
 			baseAssetReserve:  sdk.NewDec(1_000),
 			twapCalcOption:    types.TwapCalcOption_QUOTE_ASSET_SWAP,
@@ -160,7 +150,7 @@ func TestGetSnapshotPrice(t *testing.T) {
 		},
 		{
 			name:              "base asset swap add to pool calc",
-			pair:              common.TokenPair("btc:nusd"),
+			pair:              common.PairBTCStable,
 			quoteAssetReserve: sdk.NewDec(3_000),
 			baseAssetReserve:  sdk.NewDec(1_000),
 			twapCalcOption:    types.TwapCalcOption_BASE_ASSET_SWAP,
@@ -170,7 +160,7 @@ func TestGetSnapshotPrice(t *testing.T) {
 		},
 		{
 			name:              "base asset swap remove from pool calc",
-			pair:              common.TokenPair("btc:nusd"),
+			pair:              common.PairBTCStable,
 			quoteAssetReserve: sdk.NewDec(3_000),
 			baseAssetReserve:  sdk.NewDec(1_000),
 			twapCalcOption:    types.TwapCalcOption_BASE_ASSET_SWAP,

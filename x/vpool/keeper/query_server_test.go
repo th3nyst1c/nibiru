@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/NibiruChain/nibiru/x/common"
 	"github.com/NibiruChain/nibiru/x/testutil/mock"
 	"github.com/NibiruChain/nibiru/x/vpool/types"
 )
@@ -21,20 +22,22 @@ func TestQueryReserveAssets(t *testing.T) {
 
 	t.Log("initialize vpool")
 	pool := types.NewPool(
-		/* pair */ "BTC:NUSD",
+		/* pair */ common.PairBTCStable,
 		/* tradeLimitRatio */ sdk.ZeroDec(),
 		/* quoteAmount */ sdk.NewDec(1_000_000),
 		/* baseAmount */ sdk.NewDec(1000),
 		/* fluctuationLimitRatio */ sdk.ZeroDec(),
 		/* maxOracleSpreadRatio */ sdk.ZeroDec(),
+		/* maintenanceMarginRatio */ sdk.MustNewDecFromStr("0.0625"),
+		/* maxLeverage */ sdk.MustNewDecFromStr("15"),
 	)
 	vpoolKeeper.savePool(ctx, pool)
 
 	t.Log("query reserve assets")
 	resp, err := queryServer.ReserveAssets(
 		sdk.WrapSDKContext(ctx),
-		&types.QueryReserveAssetsRequests{
-			Pair: "BTC:NUSD",
+		&types.QueryReserveAssetsRequest{
+			Pair: common.PairBTCStable.String(),
 		},
 	)
 

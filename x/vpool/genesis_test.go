@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/NibiruChain/nibiru/x/common"
-	"github.com/NibiruChain/nibiru/x/testutil"
+	"github.com/NibiruChain/nibiru/x/testutil/testapp"
 	"github.com/NibiruChain/nibiru/x/vpool"
 	"github.com/NibiruChain/nibiru/x/vpool/types"
 )
@@ -16,31 +16,35 @@ import (
 func TestGenesis(t *testing.T) {
 	vpools := []*types.Pool{
 		{
-			Pair:                  "BTC:NUSD",
-			BaseAssetReserve:      sdk.NewDec(1_000_000),      // 1
-			QuoteAssetReserve:     sdk.NewDec(30_000_000_000), // 30,000
-			TradeLimitRatio:       sdk.MustNewDecFromStr("0.88"),
-			FluctuationLimitRatio: sdk.MustNewDecFromStr("0.20"),
-			MaxOracleSpreadRatio:  sdk.MustNewDecFromStr("0.20"),
+			Pair:                   common.MustNewAssetPair("BTC:NUSD"),
+			BaseAssetReserve:       sdk.NewDec(1_000_000),      // 1
+			QuoteAssetReserve:      sdk.NewDec(30_000_000_000), // 30,000
+			TradeLimitRatio:        sdk.MustNewDecFromStr("0.88"),
+			FluctuationLimitRatio:  sdk.MustNewDecFromStr("0.20"),
+			MaxOracleSpreadRatio:   sdk.MustNewDecFromStr("0.20"),
+			MaintenanceMarginRatio: sdk.MustNewDecFromStr("0.0625"),
+			MaxLeverage:            sdk.MustNewDecFromStr("15"),
 		},
 		{
-			Pair:                  "ETH:NUSD",
-			BaseAssetReserve:      sdk.NewDec(2_000_000),      // 2
-			QuoteAssetReserve:     sdk.NewDec(60_000_000_000), // 60,000
-			TradeLimitRatio:       sdk.MustNewDecFromStr("0.77"),
-			FluctuationLimitRatio: sdk.MustNewDecFromStr("0.30"),
-			MaxOracleSpreadRatio:  sdk.MustNewDecFromStr("0.30"),
+			Pair:                   common.MustNewAssetPair("ETH:NUSD"),
+			BaseAssetReserve:       sdk.NewDec(2_000_000),      // 2
+			QuoteAssetReserve:      sdk.NewDec(60_000_000_000), // 60,000
+			TradeLimitRatio:        sdk.MustNewDecFromStr("0.77"),
+			FluctuationLimitRatio:  sdk.MustNewDecFromStr("0.30"),
+			MaxOracleSpreadRatio:   sdk.MustNewDecFromStr("0.30"),
+			MaintenanceMarginRatio: sdk.MustNewDecFromStr("0.0625"),
+			MaxLeverage:            sdk.MustNewDecFromStr("15"),
 		},
 	}
 
 	genesisState := types.GenesisState{Vpools: vpools}
 
-	nibiruApp, ctx := testutil.NewNibiruApp(true)
+	nibiruApp, ctx := testapp.NewNibiruAppAndContext(true)
 	k := nibiruApp.VpoolKeeper
 	vpool.InitGenesis(ctx, k, genesisState)
 
 	for _, vp := range vpools {
-		require.True(t, k.ExistsPool(ctx, common.TokenPair(vp.Pair)))
+		require.True(t, k.ExistsPool(ctx, vp.Pair))
 	}
 
 	exportedGenesis := vpool.ExportGenesis(ctx, k)

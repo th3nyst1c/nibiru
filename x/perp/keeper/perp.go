@@ -3,64 +3,35 @@ package keeper
 import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
-	"github.com/NibiruChain/nibiru/x/common"
-	"github.com/NibiruChain/nibiru/x/perp/events"
 	"github.com/NibiruChain/nibiru/x/perp/types"
 )
-
-// TODO test: ClearPosition | https://github.com/NibiruChain/nibiru/issues/299
-func (k Keeper) ClearPosition(ctx sdk.Context, pair common.TokenPair, trader string) error {
-	return k.Positions().Update(ctx, &types.Position{
-		Address:                             trader,
-		Pair:                                pair.String(),
-		Size_:                               sdk.ZeroDec(),
-		Margin:                              sdk.ZeroDec(),
-		OpenNotional:                        sdk.ZeroDec(),
-		LastUpdateCumulativePremiumFraction: sdk.ZeroDec(),
-		LiquidityHistoryIndex:               0,
-		BlockNumber:                         ctx.BlockHeight(),
-	})
-}
-
-func (k Keeper) GetPosition(
-	ctx sdk.Context, pair common.TokenPair, owner string,
-) (*types.Position, error) {
-	return k.Positions().Get(ctx, pair, owner)
-}
-
-func (k Keeper) SetPosition(
-	ctx sdk.Context, pair common.TokenPair, owner string,
-	position *types.Position) {
-	k.Positions().Set(ctx, pair, owner, position)
-}
 
 // SettlePosition settles a trader position
 func (k Keeper) SettlePosition(
 	ctx sdk.Context,
 	currentPosition types.Position,
 ) (transferredCoins sdk.Coins, err error) {
-	tokenPair, err := common.NewTokenPairFromStr(currentPosition.Pair)
+	// Validate trader address
+	traderAddr, err := sdk.AccAddressFromBech32(currentPosition.TraderAddress)
 	if err != nil {
-		return sdk.Coins{}, err
+		return sdk.NewCoins(), nil
 	}
 
 	if currentPosition.Size_.IsZero() {
 		return sdk.NewCoins(), nil
 	}
 
-	err = k.ClearPosition(
-		ctx,
-		tokenPair,
-		currentPosition.Address,
-	)
-	if err != nil {
-		return
+	if err = k.PositionsState(ctx).Delete(
+		currentPosition.Pair,
+		traderAddr,
+	); err != nil {
+		return sdk.NewCoins(), nil
 	}
 
 	// run calculations on settled values
-	settlementPrice, err := k.VpoolKeeper.GetSettlementPrice(ctx, tokenPair)
+	settlementPrice, err := k.VpoolKeeper.GetSettlementPrice(ctx, currentPosition.Pair)
 	if err != nil {
-		return
+		return sdk.NewCoins(), nil
 	}
 
 	settledValue := sdk.ZeroDec()
@@ -77,27 +48,30 @@ func (k Keeper) SettlePosition(
 		}
 	}
 
-	transferredCoins = sdk.NewCoins(sdk.NewInt64Coin(tokenPair.GetQuoteTokenDenom(), 0))
+	transferredCoins = sdk.NewCoins(sdk.NewInt64Coin(currentPosition.Pair.QuoteDenom(), 0))
 	settledValueInt := settledValue.RoundInt()
 	if settledValueInt.IsPositive() {
-		toTransfer := sdk.NewCoin(tokenPair.GetQuoteTokenDenom(), settledValueInt)
+		toTransfer := sdk.NewCoin(currentPosition.Pair.QuoteDenom(), settledValueInt)
 		transferredCoins = sdk.NewCoins(toTransfer)
-		addr, err := sdk.AccAddressFromBech32(currentPosition.Address)
 		if err != nil {
 			panic(err) // NOTE(mercilex): must never happen
 		}
-		err = k.BankKeeper.SendCoinsFromModuleToAccount(ctx, types.VaultModuleAccount, addr, transferredCoins)
+		err = k.BankKeeper.SendCoinsFromModuleToAccount( // NOTE(mercilex): withdraw is not applied here
+			ctx,
+			types.VaultModuleAccount,
+			traderAddr,
+			transferredCoins,
+		)
 		if err != nil {
 			panic(err) // NOTE(mercilex): must never happen
 		}
 	}
 
-	events.EmitPositionSettle(
-		ctx,
-		tokenPair.String(),
-		currentPosition.Address,
-		transferredCoins,
-	)
+	err = ctx.EventManager().EmitTypedEvent(&types.PositionSettledEvent{
+		Pair:          currentPosition.Pair.String(),
+		TraderAddress: traderAddr.String(),
+		SettledCoins:  transferredCoins,
+	})
 
-	return
+	return transferredCoins, err
 }
