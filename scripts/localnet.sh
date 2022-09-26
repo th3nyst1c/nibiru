@@ -9,25 +9,26 @@ console_log_text_color() {
   reset=$(tput sgr0)
 }
 
-if [ console_log_text_color ]; then echo "succesfully toggled console coloring"
+if [ console_log_text_color ]; then
+  echo "succesfully toggled console coloring"
 else
   # For Ubuntu and Debian. MacOS has tput by default.
   apt-get install libncurses5-dbg -y
 fi
 
-echo_info () {
+echo_info() {
   echo "${blue}"
   echo "$1"
   echo "${reset}"
 }
 
-echo_error () {
+echo_error() {
   echo "${red}"
   echo "$1"
   echo "${reset}"
 }
 
-echo_success () {
+echo_success() {
   echo "${green}"
   echo "$1"
   echo "${reset}"
@@ -56,9 +57,9 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
 fi
 
 # Stop nibid if it is already running
-if pgrep -x "$BINARY" > /dev/null; then
-    echo_error "Terminating $BINARY..."
-    killall nibid
+if pgrep -x "$BINARY" >/dev/null; then
+  echo_error "Terminating $BINARY..."
+  killall nibid
 fi
 
 # Remove previous data
@@ -79,7 +80,6 @@ else
   echo_error "Failed to initialize $CHAIN_ID"
 fi
 
-
 # Configure keyring-backend to "test"
 echo_info "Configuring keyring-backend..."
 if $BINARY config keyring-backend test; then
@@ -87,7 +87,6 @@ if $BINARY config keyring-backend test; then
 else
   echo_error "Failed to configure keyring-backend"
 fi
-
 
 # Configure chain-id
 echo_info "Configuring chain-id..."
@@ -170,7 +169,7 @@ fi
 add_genesis_param() {
   echo "jq input $1"
   # copy param ($1) to tmp_genesis.json
-  cat $CHAIN_DIR/config/genesis.json | jq "$1" > $CHAIN_DIR/config/tmp_genesis.json
+  cat $CHAIN_DIR/config/genesis.json | jq "$1" >$CHAIN_DIR/config/tmp_genesis.json
   # rewrite genesis.json with the contents of tmp_genesis.json
   mv $CHAIN_DIR/config/tmp_genesis.json $CHAIN_DIR/config/genesis.json
 }
@@ -180,7 +179,7 @@ echo_info "Configuring genesis params"
 # x/vpool
 # nibid add-genesis-vpool [pair] [base-asset-reserve] [quote-asset-reserve] [trade-limit-ratio] [fluctuation-limit-ratio] [maxOracle-spread-ratio] [maintenance-margin-ratio] [max-leverage]
 # BTC:NUSD
-nibid add-genesis-vpool ubtc:unusd 50000000000 1000000000000000 0.1 0.1 0.1 0.0625 12
+nibid add-genesis-vpool ubtc:unusd 1000000000 20000000000000 0.5 0.5 0.5 0.0625 12
 
 # ETH:NUSD
 nibid add-genesis-vpool ueth:unusd 666666000000 1000000000000000 0.1 0.1 0.1 0.0625 10
@@ -201,7 +200,7 @@ add_genesis_param '.app_state.perp.pair_metadata[1].cumulative_funding_rates = [
 # x/pricefeed
 nibid add-genesis-oracle nibi1zaavvzxez0elundtn32qnk9lkm8kmcsz44g7xl
 
-cat $HOME/.nibid/config/genesis.json | jq '.app_state.pricefeed.params.twap_lookback_window = "900s"' > $HOME/.nibid/config/tmp_genesis.json && mv $HOME/.nibid/config/tmp_genesis.json $HOME/.nibid/config/genesis.json
+cat $HOME/.nibid/config/genesis.json | jq '.app_state.pricefeed.params.twap_lookback_window = "900s"' >$HOME/.nibid/config/tmp_genesis.json && mv $HOME/.nibid/config/tmp_genesis.json $HOME/.nibid/config/genesis.json
 
 # Start the network
 echo_info "Starting $CHAIN_ID in $CHAIN_DIR..."
