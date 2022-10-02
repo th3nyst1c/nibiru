@@ -52,6 +52,15 @@ func (k Keeper) AfterEpochEnd(ctx sdk.Context, epochIdentifier string, _ int64) 
 		intervalsPerDay := (24 * time.Hour) / epochInfo.Duration
 		fundingRate := markPrice.Sub(indexTWAP).Quo(indexTWAP).QuoInt64(int64(intervalsPerDay))
 
+		// If there is a previous cumulative funding rate, add onto that one. Otherwise, the funding rate is the first cumulative funding rate.
+		cumulativeFundingRate := fundingRate
+		if len(pairMetadata.CumulativeFundingRates) > 0 {
+			cumulativeFundingRate = pairMetadata.CumulativeFundingRates[len(pairMetadata.CumulativeFundingRates)-1].Add(fundingRate)
+		}
+
+		pairMetadata.CumulativeFundingRates = append(pairMetadata.CumulativeFundingRates, cumulativeFundingRate)
+		k.PairsMetadata.Insert(ctx, pairMetadata.Pair, pairMetadata)
+
 		fmt.Println("**************************")
 		fmt.Println("intervalsPerDay", intervalsPerDay)
 		fmt.Println("int64(intervalsPerDay)", int64(intervalsPerDay))
@@ -64,15 +73,6 @@ func (k Keeper) AfterEpochEnd(ctx sdk.Context, epochIdentifier string, _ int64) 
 		fmt.Println("indexTWAP", indexTWAP)
 		fmt.Println("fundingRate", fundingRate)
 		fmt.Println("cumulativeFundingRate", cumulativeFundingRate)
-
-		// If there is a previous cumulative funding rate, add onto that one. Otherwise, the funding rate is the first cumulative funding rate.
-		cumulativeFundingRate := fundingRate
-		if len(pairMetadata.CumulativeFundingRates) > 0 {
-			cumulativeFundingRate = pairMetadata.CumulativeFundingRates[len(pairMetadata.CumulativeFundingRates)-1].Add(fundingRate)
-		}
-
-		pairMetadata.CumulativeFundingRates = append(pairMetadata.CumulativeFundingRates, cumulativeFundingRate)
-		k.PairsMetadata.Insert(ctx, pairMetadata.Pair, pairMetadata)
 
 		if err = ctx.EventManager().EmitTypedEvent(&types.FundingRateChangedEvent{
 			Pair:                  pairMetadata.Pair.String(),
