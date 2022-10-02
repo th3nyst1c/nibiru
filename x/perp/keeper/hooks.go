@@ -1,6 +1,7 @@
 package keeper
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/NibiruChain/nibiru/collections/keys"
@@ -50,6 +51,12 @@ func (k Keeper) AfterEpochEnd(ctx sdk.Context, epochIdentifier string, _ int64) 
 		epochInfo := k.EpochKeeper.GetEpochInfo(ctx, epochIdentifier)
 		intervalsPerDay := (24 * time.Hour) / epochInfo.Duration
 		fundingRate := markPrice.Sub(indexTWAP).Quo(indexTWAP).QuoInt64(int64(intervalsPerDay))
+
+		fmt.Println("**************************")
+		fmt.Println("intervalsPerDay", intervalsPerDay)
+		fmt.Println("1/intervalsPerDay", sdk.OneDec().QuoInt64(int64(intervalsPerDay)))
+		fmt.Println("int64(24 * time.Hour)", int64(24*time.Hour))
+		fmt.Println("epochInfo.Duration", int64(epochInfo.Duration))
 
 		// If there is a previous cumulative funding rate, add onto that one. Otherwise, the funding rate is the first cumulative funding rate.
 		cumulativeFundingRate := fundingRate
