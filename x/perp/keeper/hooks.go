@@ -1,6 +1,7 @@
 package keeper
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/NibiruChain/nibiru/collections/keys"
@@ -60,6 +61,19 @@ func (k Keeper) AfterEpochEnd(ctx sdk.Context, epochIdentifier string, _ uint64)
 
 		pairMetadata.CumulativePremiumFractions = append(pairMetadata.CumulativePremiumFractions, cumulativePremiumFraction)
 		k.PairsMetadata.Insert(ctx, pairMetadata.Pair, pairMetadata)
+
+		fmt.Println("**************************")
+		fmt.Println("intervalsPerDay", intervalsPerDay)
+		fmt.Println("int64(intervalsPerDay)", int64(intervalsPerDay))
+		fmt.Println("1/intervalsPerDay", sdk.OneDec().QuoInt64(int64(intervalsPerDay)))
+		fmt.Println("int64(24 * time.Hour)", int64(24*time.Hour))
+		fmt.Println("epochInfo.Duration", int64(epochInfo.Duration))
+
+		fmt.Println("pairMetadata.Pair.String()", pairMetadata.Pair.String())
+		fmt.Println("markPrice", markPrice)
+		fmt.Println("indexTWAP", indexTWAP)
+		fmt.Println("fundingRate", fundingRate)
+		fmt.Println("cumulativeFundingRate", cumulativeFundingRate)
 
 		if err = ctx.EventManager().EmitTypedEvent(&types.FundingRateChangedEvent{
 			Pair:                      pairMetadata.Pair.String(),
