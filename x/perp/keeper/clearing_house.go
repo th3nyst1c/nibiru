@@ -549,6 +549,10 @@ func (k Keeper) closeAndOpenReversePosition(
 			MarginToVault:          closePositionResp.MarginToVault.Add(increasePositionResp.MarginToVault),
 			UnrealizedPnlAfter:     sdk.ZeroDec(),
 		}
+
+		fmt.Println("-----------------------------------")
+		fmt.Println("Position Resp:")
+		fmt.Println(positionResp)
 	} else {
 		// case where remaining open notional == 0
 		positionResp = closePositionResp

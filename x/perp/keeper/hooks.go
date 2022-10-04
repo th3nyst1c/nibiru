@@ -63,17 +63,19 @@ func (k Keeper) AfterEpochEnd(ctx sdk.Context, epochIdentifier string, _ uint64)
 		k.PairsMetadata.Insert(ctx, pairMetadata.Pair, pairMetadata)
 
 		fmt.Println("**************************")
+		fmt.Println("FUNDING RATE")
+		fmt.Println("**************************")
 		fmt.Println("intervalsPerDay", intervalsPerDay)
 		fmt.Println("int64(intervalsPerDay)", int64(intervalsPerDay))
 		fmt.Println("1/intervalsPerDay", sdk.OneDec().QuoInt64(int64(intervalsPerDay)))
 		fmt.Println("int64(24 * time.Hour)", int64(24*time.Hour))
 		fmt.Println("epochInfo.Duration", int64(epochInfo.Duration))
-
 		fmt.Println("pairMetadata.Pair.String()", pairMetadata.Pair.String())
-		fmt.Println("markPrice", markPrice)
+		fmt.Println("markPrice", markTwap)
 		fmt.Println("indexTWAP", indexTWAP)
-		fmt.Println("fundingRate", fundingRate)
-		fmt.Println("cumulativeFundingRate", cumulativeFundingRate)
+		fmt.Println("fundingRate", premiumFraction)
+		fmt.Println("cumulativeFundingRate", cumulativePremiumFraction)
+		fmt.Println("**************************\n\n\n ")
 
 		if err = ctx.EventManager().EmitTypedEvent(&types.FundingRateChangedEvent{
 			Pair:                      pairMetadata.Pair.String(),
