@@ -1,6 +1,6 @@
 module github.com/NibiruChain/nibiru/feeder
 
-go 1.18
+go 1.19
 
 // latest grpc doesn't work with with our modified proto compiler, so we need to enforce
 // the following version across all dependencies.

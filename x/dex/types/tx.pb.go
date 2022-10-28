@@ -134,8 +134,7 @@ func (m *MsgCreatePoolResponse) GetPoolId() uint64 {
 	return 0
 }
 
-//
-//Message to join a pool (identified by poolId) with a set of tokens to deposit.
+// Message to join a pool (identified by poolId) with a set of tokens to deposit.
 type MsgJoinPool struct {
 	Sender   string       `protobuf:"bytes,1,opt,name=sender,proto3" json:"sender,omitempty" yaml:"sender"`
 	PoolId   uint64       `protobuf:"varint,2,opt,name=pool_id,json=poolId,proto3" json:"pool_id,omitempty" yaml:"pool_id"`
@@ -196,8 +195,7 @@ func (m *MsgJoinPool) GetTokensIn() []types.Coin {
 	return nil
 }
 
-//
-//Response when a user joins a pool.
+// Response when a user joins a pool.
 type MsgJoinPoolResponse struct {
 	// the final state of the pool after a join
 	Pool *Pool `protobuf:"bytes,1,opt,name=pool,proto3" json:"pool,omitempty"`

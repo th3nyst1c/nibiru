@@ -31,10 +31,9 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
-//
-//MsgMintStable: Msg to mint NUSD. A user deposits NIBI and collateral and gets
-//NUSD in return. The amount of NUSD received depends on the current price set
-//by the pricefeed library and the current collateral ratio for the protocol.
+// MsgMintStable: Msg to mint NUSD. A user deposits NIBI and collateral and gets
+// NUSD in return. The amount of NUSD received depends on the current price set
+// by the pricefeed library and the current collateral ratio for the protocol.
 type MsgMintStable struct {
 	Creator string     `protobuf:"bytes,1,opt,name=creator,proto3" json:"creator,omitempty"`
 	Stable  types.Coin `protobuf:"bytes,2,opt,name=stable,proto3" json:"stable"`
@@ -149,10 +148,9 @@ func (m *MsgMintStableResponse) GetFeesPayed() github_com_cosmos_cosmos_sdk_type
 	return nil
 }
 
-//
-//MsgBurnStable allows users to burn NUSD in exchange for NIBI and collateral.
-//The amount of NIBI and Collateral received depends on the current price set by
-//the x/pricefeed library and the current collateral ratio.
+// MsgBurnStable allows users to burn NUSD in exchange for NIBI and collateral.
+// The amount of NIBI and Collateral received depends on the current price set by
+// the x/pricefeed library and the current collateral ratio.
 type MsgBurnStable struct {
 	Creator string     `protobuf:"bytes,1,opt,name=creator,proto3" json:"creator,omitempty"`
 	Stable  types.Coin `protobuf:"bytes,2,opt,name=stable,proto3" json:"stable"`
