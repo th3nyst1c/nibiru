@@ -38,7 +38,7 @@ func NewStream(tendermintRPC string, log zerolog.Logger) *Stream {
 	stream := &Stream{
 		stop:         make(chan struct{}),
 		done:         make(chan struct{}),
-		ws:           dial(tendermintRPC, log.With().Str("component", "events.Stream.websocket").Logger()),
+		ws:           dial(tendermintRPC, nil, log.With().Str("component", "events.Stream.websocket").Logger()),
 		votingPeriod: make(chan types.VotingPeriod),
 		params:       make(chan types.Params, 1), // for initial params
 	}

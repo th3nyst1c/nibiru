@@ -55,18 +55,20 @@ func (w *ws) loop() {
 	go func() {
 		defer close(readLoopDone)
 		for {
-			select {
-			case <-w.stop:
-				return
-			default:
-			}
-
 			_, bytes, err := w.ws.ReadMessage()
-			if err != nil && !exit.Load() {
-				w.log.Err(err).Msg("disconnected")
-				// we don't care if it fails, because if it does on ReadMessage we will receive an error
-				// and then attempt to reconnect again.
-				w.connect() // racey with the stop
+			if err != nil {
+				// error can be caused by Close
+				// so in case the ws was closed we exit
+				if exit.Load() {
+					return
+					// otherwise it's a read error, so we attempt to reconnect. LFG.
+				} else {
+					w.log.Err(err).Msg("disconnected")
+					// we don't care if it fails, because if it does on ReadMessage we will receive an error
+					// and then attempt to reconnect again.
+					w.connect() // racey with the stop
+				}
+				// no error, forward the msg
 			} else {
 				select {
 				case w.read <- bytes:
@@ -97,8 +99,9 @@ func (w *ws) connect() {
 	w.ws, err = w.dial()
 	if err != nil {
 		w.log.Err(err).Msg("failed to connect")
+	} else {
+		w.log.Info().Msg("connected")
 	}
-	w.log.Info().Msg("connected")
 }
 
 func (w *ws) message() <-chan []byte {
@@ -110,9 +113,13 @@ func (w *ws) close() {
 	<-w.done
 }
 
-func dial(url string, log zerolog.Logger) *ws {
+func dial(url string, onOpenMsg []byte, log zerolog.Logger) *ws {
 	return newWs(func() (conn, error) {
 		c, _, err := websocket.DefaultDialer.Dial(url, nil)
+		if err != nil {
+			return nil, err
+		}
+		err = c.WriteMessage(websocket.BinaryMessage, onOpenMsg)
 		return c, err
 	}, log)
 }
