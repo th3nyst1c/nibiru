@@ -1,6 +1,6 @@
 module github.com/NibiruChain/nibiru/feeder
 
-go 1.19
+go 1.18
 
 // latest grpc doesn't work with with our modified proto compiler, so we need to enforce
 // the following version across all dependencies.
@@ -20,13 +20,13 @@ require (
 	github.com/NibiruChain/nibiru v0.0.0-00010101000000-000000000000
 	github.com/cosmos/cosmos-sdk v0.45.9
 	github.com/golang/mock v1.6.0
+	github.com/gorilla/websocket v1.5.0
 	github.com/rs/zerolog v1.28.0
-	github.com/stretchr/testify v1.8.0
+	github.com/stretchr/testify v1.8.1
 )
 
 require (
-	filippo.io/edwards25519 v1.0.0-beta.2 // indirect
-	github.com/armon/go-metrics v0.3.10 // indirect
+	github.com/armon/go-metrics v0.4.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/btcsuite/btcd v0.22.1 // indirect
 	github.com/cespare/xxhash v1.1.0 // indirect
@@ -52,7 +52,6 @@ require (
 	github.com/hashicorp/go-immutable-radix v1.3.1 // indirect
 	github.com/hashicorp/golang-lru v0.5.5-0.20210104140557-80c98217689d // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
-	github.com/hdevalence/ed25519consensus v0.0.0-20210204194344-59a8610d2b87 // indirect
 	github.com/inconshreveable/mousetrap v1.0.1 // indirect
 	github.com/jmhodges/levigo v1.0.0 // indirect
 	github.com/klauspost/compress v1.15.9 // indirect
