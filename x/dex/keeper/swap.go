@@ -45,6 +45,8 @@ func (k Keeper) updatePoolForSwap(
 }
 
 /*
+SwapExactAmountIn
+
 Given a poolId and the amount of tokens to swap in, returns the number of tokens out
 received, specified by the tokenOutDenom.
 

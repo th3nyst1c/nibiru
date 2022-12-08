@@ -9,6 +9,8 @@ import (
 )
 
 /*
+CalcOutAmtGivenIn
+
 Calculates the amount of tokenOut given tokenIn, deducting the swap fee.
 Solved using the SolveConstantProductInvariant AMM curve.
 Only supports single asset swaps.
