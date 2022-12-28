@@ -1,6 +1,7 @@
 package keeper_test
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/NibiruChain/nibiru/x/testutil"
@@ -9,7 +10,6 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/simapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/stretchr/testify/require"
 
 	"github.com/NibiruChain/nibiru/x/common"
@@ -34,21 +34,30 @@ func TestSwapExactAmountIn(t *testing.T) {
 		expectedFinalPool      types.Pool
 	}{
 		{
-			name: "regular swap",
+			name: "BUG",
 			userInitialFunds: sdk.NewCoins(
-				sdk.NewInt64Coin("unibi", 100),
+				sdk.NewInt64Coin("unibi", 236534500),
+				sdk.NewInt64Coin("unusd", 1700000000),
+				sdk.NewInt64Coin("uusdt", 701785070),
 			),
-			initialPool: mock.DexPool(
-				/*poolId=*/ 1,
-				/*assets=*/ sdk.NewCoins(
-					sdk.NewInt64Coin("unibi", 100),
-					sdk.NewInt64Coin(common.DenomNUSD, 100),
-				),
-				/*shares=*/ 100,
-			),
-			tokenIn:          sdk.NewInt64Coin("unibi", 100),
-			tokenOutDenom:    common.DenomNUSD,
-			expectedTokenOut: sdk.NewInt64Coin(common.DenomNUSD, 50),
+			initialPool: types.Pool{
+				Id: 1,
+				PoolParams: types.PoolParams{
+					SwapFee:  sdk.MustNewDecFromStr("0.01"),
+					ExitFee:  sdk.MustNewDecFromStr("0.01"),
+					PoolType: types.PoolType_STABLESWAP,
+					A:        sdk.NewInt(10),
+				},
+				PoolAssets: []types.PoolAsset{
+					{Token: sdk.NewInt64Coin("unusd", 1_510_778_598),
+						Weight: sdk.NewInt(1073741824)},
+					{Token: sdk.NewInt64Coin("uusdt", 7_712_056),
+						Weight: sdk.NewInt(1073741824)},
+				},
+			},
+			tokenIn:          sdk.NewInt64Coin("unusd", 1_500_000_000),
+			tokenOutDenom:    "uusdt",
+			expectedTokenOut: sdk.NewInt64Coin("uusdt", 50),
 			expectedUserFinalFunds: sdk.NewCoins(
 				sdk.NewInt64Coin(common.DenomNUSD, 50),
 			),
@@ -62,118 +71,147 @@ func TestSwapExactAmountIn(t *testing.T) {
 			),
 			expectedError: nil,
 		},
-		{
-			name: "not enough user funds",
-			userInitialFunds: sdk.NewCoins(
-				sdk.NewInt64Coin("unibi", 1),
-			),
-			initialPool: mock.DexPool(
-				/*poolId=*/ 1,
-				/*assets=*/ sdk.NewCoins(
-					sdk.NewInt64Coin("unibi", 100),
-					sdk.NewInt64Coin(common.DenomNUSD, 100),
-				),
-				/*shares=*/ 100,
-			),
-			tokenIn:       sdk.NewInt64Coin("unibi", 100),
-			tokenOutDenom: common.DenomNUSD,
-			expectedUserFinalFunds: sdk.NewCoins(
-				sdk.NewInt64Coin("unibi", 1),
-			),
-			expectedFinalPool: mock.DexPool(
-				/*poolId=*/ 1,
-				/*assets=*/ sdk.NewCoins(
-					sdk.NewInt64Coin("unibi", 100),
-					sdk.NewInt64Coin(common.DenomNUSD, 100),
-				),
-				/*shares=*/ 100,
-			),
-			expectedError: sdkerrors.ErrInsufficientFunds,
-		},
-		{
-			name: "invalid token in denom",
-			userInitialFunds: sdk.NewCoins(
-				sdk.NewInt64Coin("foo", 100),
-			),
-			initialPool: mock.DexPool(
-				/*poolId=*/ 1,
-				/*assets=*/ sdk.NewCoins(
-					sdk.NewInt64Coin("unibi", 100),
-					sdk.NewInt64Coin(common.DenomNUSD, 100),
-				),
-				/*shares=*/ 100,
-			),
-			tokenIn:       sdk.NewInt64Coin("foo", 100),
-			tokenOutDenom: common.DenomNUSD,
-			expectedUserFinalFunds: sdk.NewCoins(
-				sdk.NewInt64Coin("foo", 100),
-			),
-			expectedFinalPool: mock.DexPool(
-				/*poolId=*/ 1,
-				/*assets=*/ sdk.NewCoins(
-					sdk.NewInt64Coin("unibi", 100),
-					sdk.NewInt64Coin(common.DenomNUSD, 100),
-				),
-				/*shares=*/ 100,
-			),
-			expectedError: types.ErrTokenDenomNotFound,
-		},
-		{
-			name: "invalid token out denom",
-			userInitialFunds: sdk.NewCoins(
-				sdk.NewInt64Coin("unibi", 100),
-			),
-			initialPool: mock.DexPool(
-				/*poolId=*/ 1,
-				/*assets=*/ sdk.NewCoins(
-					sdk.NewInt64Coin("unibi", 100),
-					sdk.NewInt64Coin(common.DenomNUSD, 100),
-				),
-				/*shares=*/ 100,
-			),
-			tokenIn:       sdk.NewInt64Coin("unibi", 100),
-			tokenOutDenom: "foo",
-			expectedUserFinalFunds: sdk.NewCoins(
-				sdk.NewInt64Coin("unibi", 100),
-			),
-			expectedFinalPool: mock.DexPool(
-				/*poolId=*/ 1,
-				/*assets=*/ sdk.NewCoins(
-					sdk.NewInt64Coin("unibi", 100),
-					sdk.NewInt64Coin(common.DenomNUSD, 100),
-				),
-				/*shares=*/ 100,
-			),
-			expectedError: types.ErrTokenDenomNotFound,
-		},
-		{
-			name: "same token in and token out denom",
-			userInitialFunds: sdk.NewCoins(
-				sdk.NewInt64Coin("unibi", 100),
-			),
-			initialPool: mock.DexPool(
-				/*poolId=*/ 1,
-				/*assets=*/ sdk.NewCoins(
-					sdk.NewInt64Coin("unibi", 100),
-					sdk.NewInt64Coin(common.DenomNUSD, 100),
-				),
-				/*shares=*/ 100,
-			),
-			tokenIn:       sdk.NewInt64Coin("unibi", 100),
-			tokenOutDenom: "unibi",
-			expectedUserFinalFunds: sdk.NewCoins(
-				sdk.NewInt64Coin("unibi", 100),
-			),
-			expectedFinalPool: mock.DexPool(
-				/*poolId=*/ 1,
-				/*assets=*/ sdk.NewCoins(
-					sdk.NewInt64Coin("unibi", 100),
-					sdk.NewInt64Coin(common.DenomNUSD, 100),
-				),
-				/*shares=*/ 100,
-			),
-			expectedError: types.ErrSameTokenDenom,
-		},
+		// {
+		// 	name: "regular swap",
+		// 	userInitialFunds: sdk.NewCoins(
+		// 		sdk.NewInt64Coin("unibi", 100),
+		// 	),
+		// 	initialPool: mock.DexPool(
+		// 		/*poolId=*/ 1,
+		// 		/*assets=*/ sdk.NewCoins(
+		// 			sdk.NewInt64Coin("unibi", 100),
+		// 			sdk.NewInt64Coin(common.DenomNUSD, 100),
+		// 		),
+		// 		/*shares=*/ 100,
+		// 	),
+		// 	tokenIn:          sdk.NewInt64Coin("unibi", 100),
+		// 	tokenOutDenom:    common.DenomNUSD,
+		// 	expectedTokenOut: sdk.NewInt64Coin(common.DenomNUSD, 50),
+		// 	expectedUserFinalFunds: sdk.NewCoins(
+		// 		sdk.NewInt64Coin(common.DenomNUSD, 50),
+		// 	),
+		// 	expectedFinalPool: mock.DexPool(
+		// 		/*poolId=*/ 1,
+		// 		/*assets=*/ sdk.NewCoins(
+		// 			sdk.NewInt64Coin("unibi", 200),
+		// 			sdk.NewInt64Coin(common.DenomNUSD, 50),
+		// 		),
+		// 		/*shares=*/ 100,
+		// 	),
+		// 	expectedError: nil,
+		// },
+		// {
+		// 	name: "not enough user funds",
+		// 	userInitialFunds: sdk.NewCoins(
+		// 		sdk.NewInt64Coin("unibi", 1),
+		// 	),
+		// 	initialPool: mock.DexPool(
+		// 		/*poolId=*/ 1,
+		// 		/*assets=*/ sdk.NewCoins(
+		// 			sdk.NewInt64Coin("unibi", 100),
+		// 			sdk.NewInt64Coin(common.DenomNUSD, 100),
+		// 		),
+		// 		/*shares=*/ 100,
+		// 	),
+		// 	tokenIn:       sdk.NewInt64Coin("unibi", 100),
+		// 	tokenOutDenom: common.DenomNUSD,
+		// 	expectedUserFinalFunds: sdk.NewCoins(
+		// 		sdk.NewInt64Coin("unibi", 1),
+		// 	),
+		// 	expectedFinalPool: mock.DexPool(
+		// 		/*poolId=*/ 1,
+		// 		/*assets=*/ sdk.NewCoins(
+		// 			sdk.NewInt64Coin("unibi", 100),
+		// 			sdk.NewInt64Coin(common.DenomNUSD, 100),
+		// 		),
+		// 		/*shares=*/ 100,
+		// 	),
+		// 	expectedError: sdkerrors.ErrInsufficientFunds,
+		// },
+		// {
+		// 	name: "invalid token in denom",
+		// 	userInitialFunds: sdk.NewCoins(
+		// 		sdk.NewInt64Coin("foo", 100),
+		// 	),
+		// 	initialPool: mock.DexPool(
+		// 		/*poolId=*/ 1,
+		// 		/*assets=*/ sdk.NewCoins(
+		// 			sdk.NewInt64Coin("unibi", 100),
+		// 			sdk.NewInt64Coin(common.DenomNUSD, 100),
+		// 		),
+		// 		/*shares=*/ 100,
+		// 	),
+		// 	tokenIn:       sdk.NewInt64Coin("foo", 100),
+		// 	tokenOutDenom: common.DenomNUSD,
+		// 	expectedUserFinalFunds: sdk.NewCoins(
+		// 		sdk.NewInt64Coin("foo", 100),
+		// 	),
+		// 	expectedFinalPool: mock.DexPool(
+		// 		/*poolId=*/ 1,
+		// 		/*assets=*/ sdk.NewCoins(
+		// 			sdk.NewInt64Coin("unibi", 100),
+		// 			sdk.NewInt64Coin(common.DenomNUSD, 100),
+		// 		),
+		// 		/*shares=*/ 100,
+		// 	),
+		// 	expectedError: types.ErrTokenDenomNotFound,
+		// },
+		// {
+		// 	name: "invalid token out denom",
+		// 	userInitialFunds: sdk.NewCoins(
+		// 		sdk.NewInt64Coin("unibi", 100),
+		// 	),
+		// 	initialPool: mock.DexPool(
+		// 		/*poolId=*/ 1,
+		// 		/*assets=*/ sdk.NewCoins(
+		// 			sdk.NewInt64Coin("unibi", 100),
+		// 			sdk.NewInt64Coin(common.DenomNUSD, 100),
+		// 		),
+		// 		/*shares=*/ 100,
+		// 	),
+		// 	tokenIn:       sdk.NewInt64Coin("unibi", 100),
+		// 	tokenOutDenom: "foo",
+		// 	expectedUserFinalFunds: sdk.NewCoins(
+		// 		sdk.NewInt64Coin("unibi", 100),
+		// 	),
+		// 	expectedFinalPool: mock.DexPool(
+		// 		/*poolId=*/ 1,
+		// 		/*assets=*/ sdk.NewCoins(
+		// 			sdk.NewInt64Coin("unibi", 100),
+		// 			sdk.NewInt64Coin(common.DenomNUSD, 100),
+		// 		),
+		// 		/*shares=*/ 100,
+		// 	),
+		// 	expectedError: types.ErrTokenDenomNotFound,
+		// },
+		// {
+		// 	name: "same token in and token out denom",
+		// 	userInitialFunds: sdk.NewCoins(
+		// 		sdk.NewInt64Coin("unibi", 100),
+		// 	),
+		// 	initialPool: mock.DexPool(
+		// 		/*poolId=*/ 1,
+		// 		/*assets=*/ sdk.NewCoins(
+		// 			sdk.NewInt64Coin("unibi", 100),
+		// 			sdk.NewInt64Coin(common.DenomNUSD, 100),
+		// 		),
+		// 		/*shares=*/ 100,
+		// 	),
+		// 	tokenIn:       sdk.NewInt64Coin("unibi", 100),
+		// 	tokenOutDenom: "unibi",
+		// 	expectedUserFinalFunds: sdk.NewCoins(
+		// 		sdk.NewInt64Coin("unibi", 100),
+		// 	),
+		// 	expectedFinalPool: mock.DexPool(
+		// 		/*poolId=*/ 1,
+		// 		/*assets=*/ sdk.NewCoins(
+		// 			sdk.NewInt64Coin("unibi", 100),
+		// 			sdk.NewInt64Coin(common.DenomNUSD, 100),
+		// 		),
+		// 		/*shares=*/ 100,
+		// 	),
+		// 	expectedError: types.ErrSameTokenDenom,
+		// },
 	}
 
 	for _, tc := range tests {
@@ -201,6 +239,7 @@ func TestSwapExactAmountIn(t *testing.T) {
 
 			// swap assets
 			tokenOut, err := app.DexKeeper.SwapExactAmountIn(ctx, sender, tc.initialPool.Id, tc.tokenIn, tc.tokenOutDenom)
+			fmt.Println(tokenOut)
 
 			if tc.expectedError != nil {
 				require.ErrorIs(t, err, tc.expectedError)
