@@ -249,6 +249,9 @@ nibid add-genesis-oracle nibi1zaavvzxez0elundtn32qnk9lkm8kmcsz44g7xl
 nibid add-genesis-oracle nibi1lptpc0e3upq2n7e4zmqtr0yxyrldp6jzz8z8xm
 nibid add-genesis-oracle nibi15cdcxznuwpuk5hw7t678wpyesy78kwy00qcesa
 
+# x/gov
+add_genesis_param '.app_state.gov.voting_params.voting_period = "20s"'
+
 # Start the network
 echo_info "Starting $CHAIN_ID in $CHAIN_DIR..."
 $BINARY start
