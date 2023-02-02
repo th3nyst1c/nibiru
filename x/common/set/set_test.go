@@ -56,3 +56,60 @@ func TestLen(t *testing.T) {
 	elements.Remove("water")
 	assert.Equal(t, elements.Len(), 2)
 }
+
+func TestList(t *testing.T) {
+	elements := New(elementSlice...)
+	assert.Contains(t, elements.List(), "fire")
+	assert.Contains(t, elements.List(), "water")
+	assert.Contains(t, elements.List(), "air")
+	assert.Contains(t, elements.List(), "earth")
+}
+
+func TestToMap(t *testing.T) {
+	elements := New(elementSlice...)
+	elements.Add("lava")
+
+	m := elements.ToMap()
+	for _, elem := range elementSlice {
+		assert.Contains(t, m, elem)
+	}
+	assert.Contains(t, m, "lava")
+	assert.NotContains(t, m, "mud")
+}
+
+func TestIterate(t *testing.T) {
+	elements := New(elementSlice...)
+	elements.Add("lava")
+	elements.Add("mud")
+
+	elements.Iterate(func(elem string) bool {
+		assert.True(t, elements.Has(elem))
+		return false
+	})
+}
+
+func TestIterateAll(t *testing.T) {
+	elements := New(elementSlice...)
+	elements.Add("lava")
+	elements.Add("mud")
+
+	elements.IterateAll(func(elem string) {
+		assert.True(t, elements.Has(elem))
+	})
+}
+
+func TestUnion(t *testing.T) {
+	elements := New(elementSlice...)
+	elements.Add("lava")
+
+	other := New("lava", "mud")
+
+	union := elements.Union(other)
+	assert.True(t, union.Has("fire"))
+	assert.True(t, union.Has("earth"))
+	assert.True(t, union.Has("water"))
+	assert.True(t, union.Has("air"))
+	assert.True(t, union.Has("lava"))
+	assert.True(t, union.Has("mud"))
+	assert.Equal(t, union.Len(), 6)
+}
