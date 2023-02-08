@@ -10,6 +10,8 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
+var A_PRECISION = uint256.NewInt(1_000_000)
+
 /*
 Returns the *base* denomination of a pool share token for a given poolId.
 
@@ -278,6 +280,7 @@ func (pool Pool) GetD(poolAssets []PoolAsset) (*uint256.Int, error) {
 	S := new(uint256.Int)
 
 	Amp := uint256.NewInt(uint64(pool.PoolParams.A.Int64()))
+	Amp = new(uint256.Int).Mul(Amp, A_PRECISION)
 
 	Ann := new(uint256.Int)
 
@@ -309,9 +312,10 @@ func (pool Pool) GetD(poolAssets []PoolAsset) (*uint256.Int, error) {
 		previousD := new(uint256.Int).Set(D)
 
 		// D = (Ann * S + D_P * N_COINS) * D / ((Ann - 1) * D + (N_COINS + 1) * D_P)
+		// D = (Ann * S / A_PRECISION + D_P * N_COINS) * D / ((Ann - A_PRECISION) * D / A_PRECISION + (N_COINS + 1) * D_P)
 		num := new(uint256.Int).Mul(
 			new(uint256.Int).Add(
-				new(uint256.Int).Mul(Ann, S),
+				new(uint256.Int).Div(new(uint256.Int).Mul(Ann, S), A_PRECISION),
 				new(uint256.Int).Mul(D_P, nCoins),
 			),
 			D,
@@ -325,8 +329,8 @@ func (pool Pool) GetD(poolAssets []PoolAsset) (*uint256.Int, error) {
 				D_P,
 			),
 			new(uint256.Int).Mul(
-				new(uint256.Int).Sub(Ann, uint256.NewInt(1)),
-				D,
+				new(uint256.Int).Sub(Ann, A_PRECISION),
+				new(uint256.Int).Div(D, A_PRECISION),
 			),
 		)
 
@@ -381,7 +385,10 @@ func (pool Pool) Exchange(tokenIn sdk.Coin, tokenOutDenom string) (dy sdk.Int, e
 
 	dx := poolAssetIn.Token.Add(tokenIn)
 
+	fmt.Println("dx", dx)
 	yAmount, err := pool.SolveStableswapInvariant(dx, tokenOutDenom)
+	fmt.Println("y", yAmount)
+	fmt.Println("dy", poolAssetOut.Token.Amount.Sub(yAmount))
 	if err != nil {
 		return
 	}
@@ -435,17 +442,19 @@ func (pool Pool) SolveStableswapInvariant(tokenIn sdk.Coin, tokenOutDenom string
 		)
 	}
 
+	// c = c * D / (Ann * N_COINS)
 	// c = c * D * A_PRECISION / (Ann * N_COINS)
 	c.Div(
-		new(uint256.Int).Mul(c, D),
+		new(uint256.Int).Mul(new(uint256.Int).Mul(c, D), A_PRECISION),
 		new(uint256.Int).Mul(Ann, nCoins),
 	)
 
 	// b = S + D / Ann
+	// b = S + D * A_PRECISION / Ann  # - D
 	b := new(uint256.Int).Add(
 		S,
 		new(uint256.Int).Div(
-			D,
+			new(uint256.Int).Mul(D, A_PRECISION),
 			Ann,
 		),
 	)
