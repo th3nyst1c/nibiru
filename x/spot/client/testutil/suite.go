@@ -9,7 +9,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	clitestutil "github.com/cosmos/cosmos-sdk/testutil/cli"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	banktestutil "github.com/cosmos/cosmos-sdk/x/bank/client/testutil"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/gogo/protobuf/proto"
 	"github.com/stretchr/testify/suite"
@@ -427,7 +426,7 @@ func (s *IntegrationTestSuite) TestNewExitPoolCmd() {
 
 		s.Run(tc.name, func() {
 			// Get original balance
-			resp, err := banktestutil.QueryBalancesExec(ctx, val.Address)
+			resp, err := testutilcli.QueryBalancesExec(ctx, val.Address)
 			s.Require().NoError(err)
 			var originalBalance banktypes.QueryAllBalancesResponse
 			s.Require().NoError(ctx.Codec.UnmarshalJSON(resp.Bytes(), &originalBalance))
@@ -444,7 +443,7 @@ func (s *IntegrationTestSuite) TestNewExitPoolCmd() {
 				s.Require().Equal(tc.expectedCode, txResp.Code, out.String())
 
 				// Ensure balance is ok
-				resp, err := banktestutil.QueryBalancesExec(ctx, val.Address)
+				resp, err := testutilcli.QueryBalancesExec(ctx, val.Address)
 				s.Require().NoError(err)
 				var finalBalance banktypes.QueryAllBalancesResponse
 				s.Require().NoError(ctx.Codec.UnmarshalJSON(resp.Bytes(), &finalBalance))
@@ -541,7 +540,7 @@ func (s *IntegrationTestSuite) TestNewExitStablePoolCmd() {
 
 		s.Run(tc.name, func() {
 			// Get original balance
-			resp, err := banktestutil.QueryBalancesExec(ctx, val.Address)
+			resp, err := testutilcli.QueryBalancesExec(ctx, val.Address)
 			s.Require().NoError(err)
 			var originalBalance banktypes.QueryAllBalancesResponse
 			s.Require().NoError(ctx.Codec.UnmarshalJSON(resp.Bytes(), &originalBalance))
@@ -558,7 +557,7 @@ func (s *IntegrationTestSuite) TestNewExitStablePoolCmd() {
 				s.Require().Equal(tc.expectedCode, txResp.Code, out.String())
 
 				// Ensure balance is ok
-				resp, err := banktestutil.QueryBalancesExec(ctx, val.Address)
+				resp, err := testutilcli.QueryBalancesExec(ctx, val.Address)
 				s.Require().NoError(err)
 				var finalBalance banktypes.QueryAllBalancesResponse
 				s.Require().NoError(ctx.Codec.UnmarshalJSON(resp.Bytes(), &finalBalance))
@@ -839,7 +838,7 @@ func (s *IntegrationTestSuite) FundAccount(recipient sdk.Address, tokens sdk.Coi
 	val := s.network.Validators[0]
 
 	// fund the user
-	_, err := banktestutil.MsgSendExec(
+	_, err := testutilcli.MsgSendExec(
 		val.ClientCtx,
 		/*from=*/ val.Address,
 		/*to=*/ recipient,

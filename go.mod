@@ -3,6 +3,7 @@ module github.com/NibiruChain/nibiru
 go 1.19
 
 require (
+	github.com/cosmos/cosmos-sdk v0.47.1
     github.com/CosmWasm/wasmvm v1.2.0 // indirect
     cosmossdk.io/api v0.2.6
 	cosmossdk.io/math v1.0.0-beta.4
@@ -161,7 +162,6 @@ replace (
     github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
 
     // local overwrite for breaking upgrades
-    github.com/NibiruChain/nibiru => ./
     github.com/NibiruChain/nibiru/x => ./x
     github.com/NibiruChain/nibiru/app => ./app
     github.com/NibiruChain/nibiru/app/params => ./app/params
