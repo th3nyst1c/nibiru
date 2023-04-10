@@ -1,16 +1,18 @@
 package app
 
 import (
-	"github.com/cosmos/cosmos-sdk/simapp/params"
 	"github.com/cosmos/cosmos-sdk/std"
+
+	"github.com/NibiruChain/nibiru/app/params"
 )
 
-// MakeTestEncodingConfig creates an EncodingConfig for testing. This function
-// should be used only in tests or when creating a new app instance (NewApp*()).
-// App user shouldn't create new codecs - use the app.AppCodec instead.
+// MakeEncodingConfig creates a new EncodingConfig with all modules registered
+// This function should be used only in tests or when creating a new app
+// instance (NewApp*()). The App user shouldn't create new codecs but should
+// instead use the app.AppCodec instead.
 // [DEPRECATED]
-func MakeTestEncodingConfig() params.EncodingConfig {
-	encodingConfig := params.MakeTestEncodingConfig()
+func MakeEncodingConfig() params.EncodingConfig {
+	encodingConfig := params.MakeEncodingConfig()
 	std.RegisterLegacyAminoCodec(encodingConfig.Amino)
 	std.RegisterInterfaces(encodingConfig.InterfaceRegistry)
 	ModuleBasics.RegisterLegacyAminoCodec(encodingConfig.Amino)
