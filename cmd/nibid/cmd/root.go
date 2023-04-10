@@ -16,7 +16,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/server"
 	serverconfig "github.com/cosmos/cosmos-sdk/server/config"
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
-	"github.com/cosmos/cosmos-sdk/simapp/params"
+
 	"github.com/cosmos/cosmos-sdk/snapshots"
 	"github.com/cosmos/cosmos-sdk/store"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -33,6 +33,7 @@ import (
 
 	"github.com/NibiruChain/nibiru/app"
 	perpammcli "github.com/NibiruChain/nibiru/x/perp/amm/cli"
+	"github.com/cosmos/NibiruChain/app/params"
 )
 
 // NewRootCmd creates a new root command for nibid. It is called once in the
