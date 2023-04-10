@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/NibiruChain/collections"
-	"github.com/cosmos/cosmos-sdk/simapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -13,7 +12,7 @@ import (
 	"github.com/NibiruChain/nibiru/x/common"
 	"github.com/NibiruChain/nibiru/x/common/asset"
 	"github.com/NibiruChain/nibiru/x/common/denoms"
-	testutilevents "github.com/NibiruChain/nibiru/x/common/testutil"
+	"github.com/NibiruChain/nibiru/x/common/testutil"
 	"github.com/NibiruChain/nibiru/x/common/testutil/testapp"
 	perpammtypes "github.com/NibiruChain/nibiru/x/perp/amm/types"
 	"github.com/NibiruChain/nibiru/x/perp/keeper"
@@ -56,7 +55,7 @@ func TestAddMarginSuccess(t *testing.T) {
 			traderAddr := sdk.MustAccAddressFromBech32(tc.initialPosition.TraderAddress)
 
 			t.Log("add trader funds")
-			require.NoError(t, simapp.FundAccount(
+			require.NoError(t, testutil.FundAccount(
 				nibiruApp.BankKeeper,
 				ctx,
 				traderAddr,
@@ -118,7 +117,7 @@ func TestRemoveMargin(t *testing.T) {
 				removeAmt := sdk.NewInt(5)
 
 				nibiruApp, ctx := testapp.NewNibiruTestAppAndContext(true)
-				trader := testutilevents.AccAddress()
+				trader := testuitl.AccAddress()
 				pair := asset.MustNewPair("osmo:nusd")
 
 				_, _, _, err := nibiruApp.PerpKeeper.RemoveMargin(ctx, pair, trader, sdk.Coin{Denom: denoms.NUSD, Amount: removeAmt})
@@ -131,7 +130,7 @@ func TestRemoveMargin(t *testing.T) {
 			test: func() {
 				t.Log("Setup Nibiru app, pair, and trader")
 				nibiruApp, ctx := testapp.NewNibiruTestAppAndContext(true)
-				trader := testutilevents.AccAddress()
+				trader := testutil.AccAddress()
 				pair := asset.MustNewPair("osmo:nusd")
 
 				t.Log("Setup market defined by pair")
@@ -166,7 +165,7 @@ func TestRemoveMargin(t *testing.T) {
 				t.Log("Setup Nibiru app, pair, and trader")
 				nibiruApp, ctx := testapp.NewNibiruTestAppAndContext(true)
 				ctx = ctx.WithBlockTime(time.Now())
-				traderAddr := testutilevents.AccAddress()
+				traderAddr := testutil.AccAddress()
 				pair := asset.MustNewPair("xxx:yyy")
 
 				t.Log("Set market defined by pair on PerpAmmKeeper")
@@ -201,7 +200,7 @@ func TestRemoveMargin(t *testing.T) {
 					WithBlockTime(time.Now().Add(time.Minute))
 
 				t.Log("Fund trader account with sufficient quote")
-				require.NoError(t, simapp.FundAccount(nibiruApp.BankKeeper, ctx, traderAddr,
+				require.NoError(t, testutil.FundAccount(nibiruApp.BankKeeper, ctx, traderAddr,
 					sdk.NewCoins(sdk.NewInt64Coin("yyy", 60))),
 				)
 
@@ -231,7 +230,7 @@ func TestRemoveMargin(t *testing.T) {
 				assert.EqualValues(t, sdk.ZeroDec(), position.LatestCumulativePremiumFraction)
 
 				t.Log("Verify correct events emitted for 'RemoveMargin'")
-				testutilevents.RequireContainsTypedEvent(t, ctx,
+				testutil.RequireContainsTypedEvent(t, ctx,
 					&types.PositionChangedEvent{
 						Pair:               pair,
 						TraderAddress:      traderAddr.String(),

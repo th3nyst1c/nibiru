@@ -7,11 +7,11 @@ import (
 
 	"github.com/NibiruChain/collections"
 	"github.com/cosmos/cosmos-sdk/baseapp"
-	"github.com/cosmos/cosmos-sdk/simapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	simtypes "github.com/cosmos/cosmos-sdk/types/simulation"
 	"github.com/cosmos/cosmos-sdk/x/simulation"
 
+	"github.com/NibiruChain/nibiru/app/params"
 	"github.com/NibiruChain/nibiru/x/common"
 	"github.com/NibiruChain/nibiru/x/common/asset"
 	"github.com/NibiruChain/nibiru/x/common/denoms"
@@ -94,7 +94,7 @@ func SimulateMsgOpenPosition(ak types.AccountKeeper, bk types.BankKeeper, k keep
 			simulation.OperationInput{
 				R:               r,
 				App:             app,
-				TxGen:           simapp.MakeTestEncodingConfig().TxConfig,
+				TxGen:           params.MakeTestEncodingConfig().TxConfig,
 				Cdc:             nil,
 				Msg:             msg,
 				MsgType:         msg.Type(),
@@ -189,7 +189,7 @@ func SimulateMsgClosePosition(ak types.AccountKeeper, bk types.BankKeeper, k kee
 			simulation.OperationInput{
 				R:               r,
 				App:             app,
-				TxGen:           simapp.MakeTestEncodingConfig().TxConfig,
+				TxGen:           params.MakeTestEncodingConfig().TxConfig,
 				Cdc:             nil,
 				Msg:             msg,
 				MsgType:         msg.Type(),
@@ -238,7 +238,7 @@ func SimulateMsgAddMargin(ak types.AccountKeeper, bk types.BankKeeper, k keeper.
 			simulation.OperationInput{
 				R:               r,
 				App:             app,
-				TxGen:           simapp.MakeTestEncodingConfig().TxConfig,
+				TxGen:           params.MakeTestEncodingConfig().TxConfig,
 				Cdc:             nil,
 				Msg:             msg,
 				MsgType:         msg.Type(),
@@ -295,7 +295,7 @@ func SimulateMsgRemoveMargin(ak types.AccountKeeper, bk types.BankKeeper, k keep
 			simulation.OperationInput{
 				R:               r,
 				App:             app,
-				TxGen:           simapp.MakeTestEncodingConfig().TxConfig,
+				TxGen:           params.MakeTestEncodingConfig().TxConfig,
 				Cdc:             nil,
 				Msg:             msg,
 				MsgType:         msg.Type(),

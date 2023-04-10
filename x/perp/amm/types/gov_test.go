@@ -7,7 +7,7 @@ import (
 
 	sdktestutil "github.com/cosmos/cosmos-sdk/testutil"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	simappparams "github.com/cosmos/ibc-go/v4/testing/simapp/params"
+	ibcparams "github.com/cosmos/ibc-go/v7/testing/simapp/params"
 	"github.com/gogo/protobuf/jsonpb"
 
 	"github.com/NibiruChain/nibiru/x/common"
@@ -188,7 +188,7 @@ func TestMarshalProposalEditPoolConfig(t *testing.T) {
 	assert.NoError(t, err)
 
 	t.Log("Unmarshal json bytes into proposal object")
-	encodingConfig := simappparams.MakeTestEncodingConfig()
+	encodingConfig := ibcparams.MakeTestEncodingConfig()
 
 	newProposal := EditPoolConfigProposal{}
 	err = encodingConfig.Marshaler.UnmarshalJSON(contents, &newProposal)
@@ -240,7 +240,7 @@ func TestMarshalProposalEditSwapInvariants(t *testing.T) {
 	assert.NoError(t, err)
 
 	t.Log("Unmarshal json bytes into proposal object")
-	encodingConfig := simappparams.MakeTestEncodingConfig()
+	encodingConfig := ibcparams.MakeTestEncodingConfig()
 
 	newProposal := EditSwapInvariantsProposal{}
 	err = encodingConfig.Marshaler.UnmarshalJSON(contents, &newProposal)
