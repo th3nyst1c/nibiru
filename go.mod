@@ -5,10 +5,10 @@ go 1.19
 require (
 	github.com/CosmWasm/wasmd v0.30.0
 	github.com/NibiruChain/collections v0.1.1
-	github.com/cosmos/cosmos-sdk v0.45.12
+	github.com/cosmos/cosmos-sdk v0.47.1
 	github.com/cosmos/go-bip39 v1.0.0
-	github.com/cosmos/ibc-go/v4 v4.3.0
-	github.com/gogo/protobuf v1.3.3
+	github.com/cosmos/ibc-go/v5 v5.0.0
+	github.com/cosmos/gogoproto v1.4.6
 	github.com/golang/mock v1.6.0
 	github.com/golang/protobuf v1.5.3
 	github.com/google/gofuzz v1.2.0
@@ -24,11 +24,11 @@ require (
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.15.0
 	github.com/stretchr/testify v1.8.2
-	github.com/tendermint/tendermint v0.34.24
-	github.com/tendermint/tm-db v0.6.7
-	google.golang.org/genproto v0.0.0-20221227171554-f9683d7f8bef
-	google.golang.org/grpc v1.52.0
-	google.golang.org/protobuf v1.29.1
+	github.com/cometbft/cometbft v0.37.0
+	github.com/cometbft/cometbft-db v0.7.0
+	google.golang.org/genproto v0.0.0-20230110181048-76db0878b65f
+	google.golang.org/grpc v1.54.0
+	google.golang.org/protobuf v1.30.0
 	gopkg.in/yaml.v2 v2.4.0
 )
 
@@ -131,14 +131,23 @@ require (
 	nhooyr.io/websocket v1.8.6 // indirect
 )
 
-// latest grpc doesn't work with with our modified proto compiler, so we need to enforce
-// the following version across all dependencies.
-replace google.golang.org/grpc => google.golang.org/grpc v1.33.2
+replace (
 
-replace github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
+	// latest grpc doesn't work with with our modified proto compiler, so we need to enforce
+	// the following version across all dependencies.
+	google.golang.org/grpc => google.golang.org/grpc v1.33.2
 
-// Fix upstream GHSA-h395-qcrw-5vmq vulnerability.
-// TODO Remove it: https://github.com/cosmos/cosmos-sdk/issues/10409
-replace github.com/gin-gonic/gin => github.com/gin-gonic/gin v1.7.0
+	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 
-replace github.com/CosmWasm/wasmvm v1.1.1 => github.com/NibiruChain/wasmvm v1.1.2
+	// Fix upstream GHSA-h395-qcrw-5vmq vulnerability.
+	// Security Advisory https://github.com/advisories/GHSA-h395-qcrw-5vmq
+	// TODO Remove it: https://github.com/cosmos/cosmos-sdk/issues/10409
+	github.com/gin-gonic/gin => github.com/gin-gonic/gin v1.7.0
+
+	github.com/CosmWasm/wasmvm v1.1.1 => github.com/NibiruChain/wasmvm v1.1.2
+
+    // The GoLevelDB version must be pinned to v1.0.1-0.20210819022825-2ae1ddf74ef7 
+    // Future versions might cause unexpected behavior.
+    // See https://docs.cosmos.network/main/migrations/upgrading#v047x
+    github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
+)
