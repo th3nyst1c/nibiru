@@ -7,9 +7,9 @@ import (
 	"os"
 	"time"
 
+	sdksimapp "cosmossdk.io/simapp"
+	"github.com/cosmos/NibiruChain/app/params"
 	"github.com/cosmos/cosmos-sdk/codec"
-	sdksimapp "github.com/cosmos/cosmos-sdk/simapp"
-	simappparams "github.com/cosmos/cosmos-sdk/simapp/params"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
 	simtypes "github.com/cosmos/cosmos-sdk/types/simulation"
@@ -147,11 +147,11 @@ func AppStateRandomizedFn(
 	// number of bonded accounts
 	var initialStake, numInitiallyBonded int64
 	appParams.GetOrGenerate(
-		cdc, simappparams.StakePerAccount, &initialStake, r,
+		cdc, params.StakePerAccount, &initialStake, r,
 		func(r *rand.Rand) { initialStake = r.Int63n(1e12) },
 	)
 	appParams.GetOrGenerate(
-		cdc, simappparams.InitiallyBondedValidators, &numInitiallyBonded, r,
+		cdc, params.InitiallyBondedValidators, &numInitiallyBonded, r,
 		func(r *rand.Rand) { numInitiallyBonded = int64(r.Intn(300)) },
 	)
 

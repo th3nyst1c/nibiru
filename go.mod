@@ -3,9 +3,18 @@ module github.com/NibiruChain/nibiru
 go 1.19
 
 require (
-	github.com/CosmWasm/wasmd v0.30.0
+    github.com/CosmWasm/wasmvm v1.2.0 // indirect
+    cosmossdk.io/api v0.2.6
+	cosmossdk.io/math v1.0.0-beta.4
+)
+
+require (
+	// github.com/CosmWasm/wasmd v0.30.0
+    github.com/CosmWasm/wasmd v0.30.1-0.20230130131907-388b17524043 // wasmvm 1.2
 	github.com/NibiruChain/collections v0.1.1
 	github.com/cosmos/cosmos-sdk v0.47.1
+    cosmossdk.io/math v1.0.0-beta.4
+	cosmossdk.io/tools/rosetta v0.2.0
 	github.com/cosmos/go-bip39 v1.0.0
 	github.com/cosmos/ibc-go/v5 v5.0.0
 	github.com/cosmos/gogoproto v1.4.6
@@ -144,10 +153,17 @@ replace (
 	// TODO Remove it: https://github.com/cosmos/cosmos-sdk/issues/10409
 	github.com/gin-gonic/gin => github.com/gin-gonic/gin v1.7.0
 
-	github.com/CosmWasm/wasmvm v1.1.1 => github.com/NibiruChain/wasmvm v1.1.2
+	// github.com/CosmWasm/wasmvm v1.1.1 => github.com/NibiruChain/wasmvm v1.1.2
 
     // The GoLevelDB version must be pinned to v1.0.1-0.20210819022825-2ae1ddf74ef7 
     // Future versions might cause unexpected behavior.
     // See https://docs.cosmos.network/main/migrations/upgrading#v047x
     github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
+
+    // local overwrite for breaking upgrades
+    github.com/NibiruChain/nibiru => ./
+    github.com/NibiruChain/nibiru/x => ./x
+    github.com/NibiruChain/nibiru/app => ./app
+    github.com/NibiruChain/nibiru/app/params => ./app/params
+    github.com/NibiruChain/nibiru/x/common/testutil/sim => ./x/common/testutil/sim
 )
