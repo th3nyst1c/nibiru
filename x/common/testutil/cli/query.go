@@ -5,7 +5,7 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"
-	clitestutil "github.com/cosmos/cosmos-sdk/testutil/cli"
+	sdkcli "github.com/cosmos/cosmos-sdk/testutil/cli"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/spf13/cobra"
 	tmcli "github.com/tendermint/tendermint/libs/cli"
@@ -59,7 +59,7 @@ func ExecQuery(clientCtx client.Context, cmd *cobra.Command, args []string, resu
 		return fmt.Errorf("unknown query encoding type %d", options.outputEncoding)
 	}
 
-	resultRaw, err := clitestutil.ExecTestCLICmd(clientCtx, cmd, args)
+	resultRaw, err := sdkcli.ExecTestCLICmd(clientCtx, cmd, args)
 	if err != nil {
 		return err
 	}

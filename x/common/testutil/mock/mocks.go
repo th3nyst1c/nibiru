@@ -3,7 +3,6 @@ package mock
 import (
 	"testing"
 
-	sdktestsmocks "github.com/cosmos/cosmos-sdk/tests/mocks"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	gomock "github.com/golang/mock/gomock"
 )
@@ -19,7 +18,7 @@ For example,
 import (
 
 	gomock "github.com/golang/mock/gomock"
-	sdktestsmocks "github.com/cosmos/cosmos-sdk/tests/mocks"
+	"github.com/NibiruChain/x/common/testutil/mock"
 
 )
 
@@ -37,6 +36,6 @@ import (
 */
 func AppendCtxWithMockLogger(t *testing.T, ctx sdk.Context) (sdk.Context, *sdktestsmocks.MockLogger) {
 	ctrl := gomock.NewController(t)
-	logger := sdktestsmocks.NewMockLogger(ctrl)
+	logger := NewMockLogger(ctrl)
 	return ctx.WithLogger(logger), logger
 }

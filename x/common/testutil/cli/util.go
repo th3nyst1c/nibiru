@@ -17,7 +17,6 @@ import (
 	srvtypes "github.com/cosmos/cosmos-sdk/server/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
-	banktestutil "github.com/cosmos/cosmos-sdk/x/bank/client/testutil"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/cosmos/cosmos-sdk/x/genutil"
 	genutiltypes "github.com/cosmos/cosmos-sdk/x/genutil/types"
@@ -226,7 +225,7 @@ func writeFile(name string, dir string, contents []byte) error {
 func FillWalletFromValidator(
 	addr sdk.AccAddress, balance sdk.Coins, val *Validator, feesDenom string,
 ) error {
-	rawResp, err := banktestutil.MsgSendExec(
+	rawResp, err := MsgSendExec(
 		val.ClientCtx,
 		val.Address,
 		addr,
