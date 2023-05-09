@@ -123,11 +123,15 @@ import (
 	perpammcli "github.com/NibiruChain/nibiru/x/perp/amm/cli"
 	perpammkeeper "github.com/NibiruChain/nibiru/x/perp/amm/keeper"
 	perpkeeper "github.com/NibiruChain/nibiru/x/perp/keeper"
+	perpkeeperv2 "github.com/NibiruChain/nibiru/x/perp/keeper/v2"
 	perptypes "github.com/NibiruChain/nibiru/x/perp/types"
+	perptypesv2 "github.com/NibiruChain/nibiru/x/perp/types/v2"
 
 	"github.com/NibiruChain/nibiru/x/spot"
 	spotkeeper "github.com/NibiruChain/nibiru/x/spot/keeper"
 	spottypes "github.com/NibiruChain/nibiru/x/spot/types"
+
+	"github.com/NibiruChain/nibiru/x/sudo"
 
 	"github.com/NibiruChain/nibiru/x/stablecoin"
 	stablecoinkeeper "github.com/NibiruChain/nibiru/x/stablecoin/keeper"
@@ -194,6 +198,7 @@ var (
 		perp.AppModuleBasic{},
 		perpamm.AppModuleBasic{},
 		inflation.AppModuleBasic{},
+		sudo.AppModuleBasic{},
 		wasm.AppModuleBasic{},
 		ibcfee.AppModuleBasic{},
 	)
@@ -217,6 +222,7 @@ var (
 		perptypes.FeePoolModuleAccount:        {},
 		epochstypes.ModuleName:                {},
 		stablecointypes.StableEFModuleAccount: {authtypes.Burner},
+		sudo.ModuleName:                       {},
 		common.TreasuryPoolModuleAccount:      {},
 		wasm.ModuleName:                       {},
 	}
@@ -293,10 +299,12 @@ type NibiruApp struct {
 	EpochsKeeper     epochskeeper.Keeper
 	PerpKeeper       perpkeeper.Keeper
 	PerpAmmKeeper    perpammkeeper.Keeper
+	PerpKeeperV2     perpkeeperv2.Keeper
 	SpotKeeper       spotkeeper.Keeper
 	OracleKeeper     oraclekeeper.Keeper
 	StablecoinKeeper stablecoinkeeper.Keeper
 	InflationKeeper  inflationkeeper.Keeper
+	SudoKeeper       sudo.Keeper
 
 	// WASM keepers
 	WasmKeeper       wasm.Keeper
@@ -332,6 +340,7 @@ func GetWasmOpts(nibiru NibiruApp, appOpts servertypes.AppOptions) []wasm.Option
 	wasmOpts = append(wasmOpts, wasmbinding.RegisterWasmOptions(
 		&nibiru.PerpKeeper,
 		&nibiru.PerpAmmKeeper,
+		&nibiru.SudoKeeper,
 	)...)
 
 	return wasmOpts
@@ -640,6 +649,7 @@ func initParamsKeeper(
 	paramsKeeper.Subspace(epochstypes.ModuleName)
 	paramsKeeper.Subspace(stablecointypes.ModuleName)
 	paramsKeeper.Subspace(perptypes.ModuleName)
+	paramsKeeper.Subspace(perptypesv2.ModuleName)
 	paramsKeeper.Subspace(inflationtypes.ModuleName)
 	// ibc params keepers
 	paramsKeeper.Subspace(ibctransfertypes.ModuleName)

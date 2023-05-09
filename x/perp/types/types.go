@@ -29,7 +29,8 @@ var (
 	ErrLeverageIsTooHigh                 = sdkerrors.Register(ModuleName, 8, "leverage cannot be higher than market parameter")
 	ErrUnauthorized                      = sdkerrors.Register(ModuleName, 9, "operation not authorized")
 	ErrAllLiquidationsFailed             = sdkerrors.Register(ModuleName, 10, "all liquidations failed")
-	ErrNotEnoughFundToPayRepeg           = sdkerrors.Register(ModuleName, 11, "not enough fund in perp EF to pay for repeg")
+	ErrNotEnoughFundToPayAction          = sdkerrors.Register(ModuleName, 11, "not enough fund in perp EF to pay for action")
+	ErrQuoteAmountIsTooSmall             = sdkerrors.Register(ModuleName, 12, "quote amount is too low")
 )
 
 func ZeroPosition(ctx sdk.Context, tokenPair asset.Pair, traderAddr sdk.AccAddress) Position {

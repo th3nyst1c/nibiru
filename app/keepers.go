@@ -87,6 +87,7 @@ import (
 	"github.com/NibiruChain/nibiru/x/epochs"
 	epochskeeper "github.com/NibiruChain/nibiru/x/epochs/keeper"
 	epochstypes "github.com/NibiruChain/nibiru/x/epochs/types"
+	"github.com/NibiruChain/nibiru/x/sudo"
 
 	"github.com/NibiruChain/nibiru/x/inflation"
 	inflationkeeper "github.com/NibiruChain/nibiru/x/inflation/keeper"
@@ -101,8 +102,10 @@ import (
 	perpammkeeper "github.com/NibiruChain/nibiru/x/perp/amm/keeper"
 	perpammtypes "github.com/NibiruChain/nibiru/x/perp/amm/types"
 	perpkeeper "github.com/NibiruChain/nibiru/x/perp/keeper"
+	v2perpkeeper "github.com/NibiruChain/nibiru/x/perp/keeper/v2"
 
 	perptypes "github.com/NibiruChain/nibiru/x/perp/types"
+	v2perptypes "github.com/NibiruChain/nibiru/x/perp/types/v2"
 	"github.com/NibiruChain/nibiru/x/spot"
 	spotkeeper "github.com/NibiruChain/nibiru/x/spot/keeper"
 	spottypes "github.com/NibiruChain/nibiru/x/spot/types"
@@ -145,8 +148,10 @@ func GetStoreKeys() (
 		oracletypes.StoreKey,
 		epochstypes.StoreKey,
 		perptypes.StoreKey,
+		v2perptypes.StoreKey,
 		perpammtypes.StoreKey,
 		inflationtypes.StoreKey,
+		sudo.StoreKey,
 		wasm.StoreKey,
 	)
 	tkeys = sdk.NewTransientStoreKeys(paramstypes.TStoreKey)
@@ -264,9 +269,15 @@ func (app *NibiruApp) InitKeepers(
 		app.AccountKeeper, app.BankKeeper, app.OracleKeeper, app.PerpAmmKeeper, app.EpochsKeeper,
 	)
 
+	app.PerpKeeperV2 = v2perpkeeper.NewKeeper(appCodec, keys[v2perptypes.StoreKey], app.GetSubspace(v2perptypes.ModuleName), app.AccountKeeper, app.BankKeeper, app.OracleKeeper, app.EpochsKeeper)
+
 	app.InflationKeeper = inflationkeeper.NewKeeper(
 		appCodec, keys[inflationtypes.StoreKey], app.GetSubspace(inflationtypes.ModuleName),
 		app.AccountKeeper, app.BankKeeper, app.DistrKeeper, app.stakingKeeper, authtypes.FeeCollectorName,
+	)
+
+	app.SudoKeeper = sudo.NewKeeper(
+		appCodec, keys[sudo.StoreKey],
 	)
 
 	app.EpochsKeeper.SetHooks(
@@ -437,6 +448,7 @@ func (app *NibiruApp) AppModules(
 	inflationModule := inflation.NewAppModule(
 		app.InflationKeeper, app.AccountKeeper, app.stakingKeeper,
 	)
+	sudoModule := sudo.NewAppModule(appCodec, app.SudoKeeper)
 
 	return []module.AppModule{
 		genutil.NewAppModule(
@@ -465,6 +477,7 @@ func (app *NibiruApp) AppModules(
 		perpAmmModule,
 		perpModule,
 		inflationModule,
+		sudoModule,
 
 		// ibc
 		evidence.NewAppModule(app.evidenceKeeper),
@@ -521,7 +534,9 @@ func OrderedModuleNames() []string {
 		oracletypes.ModuleName,
 		perpammtypes.ModuleName,
 		perptypes.ModuleName,
+		v2perptypes.ModuleName,
 		inflationtypes.ModuleName,
+		sudo.ModuleName,
 
 		// --------------------------------------------------------------------
 		// IBC modules

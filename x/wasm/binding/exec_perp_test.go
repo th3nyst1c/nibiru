@@ -52,8 +52,8 @@ func (s *TestSuitePerpExecutor) SetupSuite() {
 		Time:    time.Now().UTC(),
 	})
 	coins := sdk.NewCoins(
-		sdk.NewCoin(denoms.NIBI, sdk.NewInt(1_000)),
-		sdk.NewCoin(denoms.NUSD, sdk.NewInt(420*69)),
+		sdk.NewCoin(denoms.NIBI, sdk.NewInt(1_000_000)),
+		sdk.NewCoin(denoms.NUSD, sdk.NewInt(420_000*69)),
 	)
 	s.NoError(testapp.FundAccount(nibiru.BankKeeper, ctx, sender, coins))
 
@@ -94,7 +94,7 @@ func (s *TestSuitePerpExecutor) DoOpenPositionTest(pair asset.Pair) error {
 		Sender:          s.contractDeployer.String(),
 		Pair:            pair.String(),
 		IsLong:          false,
-		QuoteAmount:     sdk.NewInt(420),
+		QuoteAmount:     sdk.NewInt(4_200_000),
 		Leverage:        sdk.NewDec(5),
 		BaseAmountLimit: sdk.NewInt(0),
 	}
@@ -186,6 +186,17 @@ func (s *TestSuitePerpExecutor) DoPegShiftTest(pair asset.Pair) error {
 	return err
 }
 
+func (s *TestSuitePerpExecutor) DoDepthShiftTest(pair asset.Pair) error {
+	contractAddr := s.contractPerp
+	cwMsg := &cw_struct.DepthShift{
+		Pair:      pair.String(),
+		DepthMult: sdk.NewDec(420),
+	}
+
+	err := s.exec.DepthShift(cwMsg, contractAddr, s.ctx)
+	return err
+}
+
 func (s *TestSuitePerpExecutor) TestSadPaths_Nil() {
 	var err error
 
@@ -204,6 +215,10 @@ func (s *TestSuitePerpExecutor) TestSadPaths_Nil() {
 	err = s.exec.PegShift(
 		nil, sdk.AccAddress([]byte("contract")), s.ctx)
 	s.Error(err)
+
+	err = s.exec.DepthShift(
+		nil, sdk.AccAddress([]byte("contract")), s.ctx)
+	s.Error(err)
 }
 
 func (s *TestSuitePerpExecutor) TestSadPaths_InvalidPair() {
@@ -217,6 +232,7 @@ func (s *TestSuitePerpExecutor) TestSadPaths_InvalidPair() {
 		s.DoRemoveMarginTest(pair, margin),
 		s.DoClosePositionTest(pair),
 		s.DoPegShiftTest(pair),
+		s.DoDepthShiftTest(pair),
 	} {
 		s.Error(err)
 	}
