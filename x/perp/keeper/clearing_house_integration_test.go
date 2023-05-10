@@ -17,13 +17,12 @@ import (
 	"github.com/NibiruChain/nibiru/x/common/testutil"
 	. "github.com/NibiruChain/nibiru/x/common/testutil/action"
 	"github.com/NibiruChain/nibiru/x/common/testutil/testapp"
-	. "github.com/NibiruChain/nibiru/x/oracle/integration_test/action"
+	. "github.com/NibiruChain/nibiru/x/oracle/integration/action"
+	perpammtypes "github.com/NibiruChain/nibiru/x/perp/amm/types"
 	. "github.com/NibiruChain/nibiru/x/perp/integration/action"
 	. "github.com/NibiruChain/nibiru/x/perp/integration/assertion"
 	"github.com/NibiruChain/nibiru/x/perp/keeper"
-
-	perpammtypes "github.com/NibiruChain/nibiru/x/perp/amm/types"
-	perptypes "github.com/NibiruChain/nibiru/x/perp/types"
+	"github.com/NibiruChain/nibiru/x/perp/types/v1"
 )
 
 func createInitMarket() Action {
@@ -53,54 +52,54 @@ func TestOpenPosition(t *testing.T) {
 				SetBlockTime(startBlockTime),
 				SetBlockNumber(1),
 				SetOraclePrice(pairBtcUsdc, sdk.MustNewDecFromStr("2.1")),
-				FundAccount(alice, sdk.NewCoins(sdk.NewCoin(denoms.USDC, sdk.NewInt(1020)))),
+				FundAccount(alice, sdk.NewCoins(sdk.NewCoin(denoms.USDC, sdk.NewInt(1020000)))),
 			).
 			When(
-				OpenPosition(alice, pairBtcUsdc, perpammtypes.Direction_LONG, sdk.NewInt(1000), sdk.NewDec(10), sdk.ZeroDec(),
+				OpenPosition(alice, pairBtcUsdc, perpammtypes.Direction_LONG, sdk.NewInt(1_000_000), sdk.NewDec(10), sdk.ZeroDec(),
 					OpenPositionResp_PositionShouldBeEqual(
-						perptypes.Position{
+						types.Position{
 							Pair:                            pairBtcUsdc,
 							TraderAddress:                   alice.String(),
-							Margin:                          sdk.NewDec(1000),
-							OpenNotional:                    sdk.NewDec(10_000),
-							Size_:                           sdk.MustNewDecFromStr("9999.999900000001"),
+							Margin:                          sdk.NewDec(1_000_000),
+							OpenNotional:                    sdk.NewDec(10_000_000),
+							Size_:                           sdk.MustNewDecFromStr("9999900.000999990000099999"),
 							BlockNumber:                     1,
 							LatestCumulativePremiumFraction: sdk.ZeroDec(),
 						}),
-					OpenPositionResp_ExchangeNotionalValueShouldBeEqual(sdk.NewDec(1000*10)), // margin * leverage
-					OpenPositionResp_ExchangedPositionSizeShouldBeEqual(sdk.MustNewDecFromStr("9999.999900000001")),
+					OpenPositionResp_ExchangeNotionalValueShouldBeEqual(sdk.NewDec(1_000_000*10)), // margin * leverage
+					OpenPositionResp_ExchangedPositionSizeShouldBeEqual(sdk.MustNewDecFromStr("9999900.000999990000099999")),
 					OpenPositionResp_BadDebtShouldBeEqual(sdk.ZeroDec()),
 					OpenPositionResp_FundingPaymentShouldBeEqual(sdk.ZeroDec()),
 					OpenPositionResp_RealizedPnlShouldBeEqual(sdk.ZeroDec()),
 					OpenPositionResp_UnrealizedPnlAfterShouldBeEqual(sdk.ZeroDec()),
-					OpenPositionResp_MarginToVaultShouldBeEqual(sdk.NewDec(1000)),
-					OpenPositionResp_PositionNotionalShouldBeEqual(sdk.NewDec(10_000)),
+					OpenPositionResp_MarginToVaultShouldBeEqual(sdk.NewDec(1_000_000)),
+					OpenPositionResp_PositionNotionalShouldBeEqual(sdk.NewDec(10_000_000)),
 				),
 			).
 			Then(
-				PositionShouldBeEqual(alice, pairBtcUsdc, Position_PositionShouldBeEqualTo(perptypes.Position{
+				PositionShouldBeEqual(alice, pairBtcUsdc, Position_PositionShouldBeEqualTo(types.Position{
 					Pair:                            pairBtcUsdc,
 					TraderAddress:                   alice.String(),
-					Margin:                          sdk.NewDec(1000),
-					OpenNotional:                    sdk.NewDec(10_000),
-					Size_:                           sdk.MustNewDecFromStr("9999.999900000001"),
+					Margin:                          sdk.NewDec(1_000_000),
+					OpenNotional:                    sdk.NewDec(10_000_000),
+					Size_:                           sdk.MustNewDecFromStr("9999900.000999990000099999"),
 					BlockNumber:                     1,
 					LatestCumulativePremiumFraction: sdk.ZeroDec(),
 				})),
-				PositionChangedEventShouldBeEqual(&perptypes.PositionChangedEvent{
+				PositionChangedEventShouldBeEqual(&types.PositionChangedEvent{
 					Pair:               pairBtcUsdc,
 					TraderAddress:      alice.String(),
-					Margin:             sdk.NewCoin(denoms.USDC, sdk.NewDec(1000).TruncateInt()),
-					PositionNotional:   sdk.NewDec(10_000),
-					ExchangedNotional:  sdk.NewDec(1000 * 10),
-					ExchangedSize:      sdk.MustNewDecFromStr("9999.999900000001"),
-					PositionSize:       sdk.MustNewDecFromStr("9999.999900000001"),
+					Margin:             sdk.NewCoin(denoms.USDC, sdk.NewDec(1000000).TruncateInt()),
+					PositionNotional:   sdk.NewDec(10_000_000),
+					ExchangedNotional:  sdk.NewDec(1_000_000 * 10),
+					ExchangedSize:      sdk.MustNewDecFromStr("9999900.000999990000099999"),
+					PositionSize:       sdk.MustNewDecFromStr("9999900.000999990000099999"),
 					RealizedPnl:        sdk.ZeroDec(),
 					UnrealizedPnlAfter: sdk.ZeroDec(),
 					BadDebt:            sdk.NewCoin(denoms.USDC, sdk.ZeroInt()),
-					MarkPrice:          sdk.MustNewDecFromStr("1.0000000200000001"),
+					MarkPrice:          sdk.MustNewDecFromStr("1.000020000100000000"),
 					FundingPayment:     sdk.ZeroDec(),
-					TransactionFee:     sdk.NewCoin(denoms.USDC, sdk.NewInt(20)),
+					TransactionFee:     sdk.NewCoin(denoms.USDC, sdk.NewInt(20_000)),
 					BlockHeight:        1,
 					BlockTimeMs:        startBlockTime.UnixNano() / 1e6,
 				}),
@@ -111,45 +110,45 @@ func TestOpenPosition(t *testing.T) {
 			SetBlockNumber(1),
 			SetBlockTime(startBlockTime),
 			SetOraclePrice(pairBtcUsdc, sdk.MustNewDecFromStr("2.1")),
-			FundAccount(alice, sdk.NewCoins(sdk.NewCoin(denoms.USDC, sdk.NewInt(2040)))),
-			OpenPosition(alice, pairBtcUsdc, perpammtypes.Direction_LONG, sdk.NewInt(1000), sdk.NewDec(10), sdk.ZeroDec()),
+			FundAccount(alice, sdk.NewCoins(sdk.NewCoin(denoms.USDC, sdk.NewInt(2040000)))),
+			OpenPosition(alice, pairBtcUsdc, perpammtypes.Direction_LONG, sdk.NewInt(1000000), sdk.NewDec(10), sdk.ZeroDec()),
 		).When(
 			MoveToNextBlock(),
-			OpenPosition(alice, pairBtcUsdc, perpammtypes.Direction_LONG, sdk.NewInt(1000), sdk.NewDec(10), sdk.ZeroDec(),
+			OpenPosition(alice, pairBtcUsdc, perpammtypes.Direction_LONG, sdk.NewInt(1000000), sdk.NewDec(10), sdk.ZeroDec(),
 				OpenPositionResp_PositionShouldBeEqual(
-					perptypes.Position{
+					types.Position{
 						Pair:                            pairBtcUsdc,
 						TraderAddress:                   alice.String(),
-						Margin:                          sdk.NewDec(2000),
-						OpenNotional:                    sdk.NewDec(20_000),
-						Size_:                           sdk.MustNewDecFromStr("19999.999600000008000000"),
+						Margin:                          sdk.NewDec(2_000_000),
+						OpenNotional:                    sdk.NewDec(20_000_000),
+						Size_:                           sdk.MustNewDecFromStr("19999600.007999840003199936"),
 						BlockNumber:                     2,
 						LatestCumulativePremiumFraction: sdk.ZeroDec(),
 					}),
-				OpenPositionResp_ExchangeNotionalValueShouldBeEqual(sdk.NewDec(1000*10)), // margin * leverage
-				OpenPositionResp_ExchangedPositionSizeShouldBeEqual(sdk.MustNewDecFromStr("9999.999700000007000000")),
+				OpenPositionResp_ExchangeNotionalValueShouldBeEqual(sdk.NewDec(1_000_000*10)), // margin * leverage
+				OpenPositionResp_ExchangedPositionSizeShouldBeEqual(sdk.MustNewDecFromStr("9999700.006999850003099937")),
 				OpenPositionResp_BadDebtShouldBeEqual(sdk.ZeroDec()),
 				OpenPositionResp_FundingPaymentShouldBeEqual(sdk.ZeroDec()),
 				OpenPositionResp_RealizedPnlShouldBeEqual(sdk.ZeroDec()),
-				OpenPositionResp_UnrealizedPnlAfterShouldBeEqual(sdk.MustNewDecFromStr("0.000199999998000000")),
-				OpenPositionResp_MarginToVaultShouldBeEqual(sdk.NewDec(1000)),
-				OpenPositionResp_PositionNotionalShouldBeEqual(sdk.MustNewDecFromStr("20000.000199999998000000")),
+				OpenPositionResp_UnrealizedPnlAfterShouldBeEqual(sdk.MustNewDecFromStr("199.998000000000399992")),
+				OpenPositionResp_MarginToVaultShouldBeEqual(sdk.NewDec(1_000_000)),
+				OpenPositionResp_PositionNotionalShouldBeEqual(sdk.MustNewDecFromStr("20000199.998000000000399992")),
 			),
 		).Then(
-			PositionChangedEventShouldBeEqual(&perptypes.PositionChangedEvent{
+			PositionChangedEventShouldBeEqual(&types.PositionChangedEvent{
 				Pair:               pairBtcUsdc,
 				TraderAddress:      alice.String(),
-				Margin:             sdk.NewCoin(denoms.USDC, sdk.NewDec(2000).TruncateInt()),
-				PositionNotional:   sdk.MustNewDecFromStr("20000.000199999998000000"),
-				ExchangedNotional:  sdk.NewDec(1000 * 10),
-				ExchangedSize:      sdk.MustNewDecFromStr("9999.999700000007000000"),
-				PositionSize:       sdk.MustNewDecFromStr("19999.999600000008000000"),
+				Margin:             sdk.NewCoin(denoms.USDC, sdk.NewDec(2_000_000).TruncateInt()),
+				PositionNotional:   sdk.MustNewDecFromStr("20000199.998000000000399992"),
+				ExchangedNotional:  sdk.NewDec(1_000_000 * 10),
+				ExchangedSize:      sdk.MustNewDecFromStr("9999700.006999850003099937"),
+				PositionSize:       sdk.MustNewDecFromStr("19999600.007999840003199936"),
 				RealizedPnl:        sdk.ZeroDec(),
-				UnrealizedPnlAfter: sdk.MustNewDecFromStr("0.000199999998000000"),
+				UnrealizedPnlAfter: sdk.MustNewDecFromStr("199.998000000000399992"),
 				BadDebt:            sdk.NewCoin(denoms.USDC, sdk.ZeroInt()),
-				MarkPrice:          sdk.MustNewDecFromStr("1.000000040000000400"),
+				MarkPrice:          sdk.MustNewDecFromStr("1.000040000400000000"),
 				FundingPayment:     sdk.ZeroDec(),
-				TransactionFee:     sdk.NewCoin(denoms.USDC, sdk.NewInt(20)),
+				TransactionFee:     sdk.NewCoin(denoms.USDC, sdk.NewInt(20_000)),
 				BlockHeight:        2,
 				BlockTimeMs:        startBlockTime.Add(time.Second*5).UnixNano() / 1e6,
 			}),
@@ -164,7 +163,7 @@ func TestOpenPositionSuccess(t *testing.T) {
 		name        string
 		traderFunds sdk.Coins
 
-		initialPosition *perptypes.Position
+		initialPosition *types.Position
 
 		side      perpammtypes.Direction
 		margin    sdk.Int
@@ -182,25 +181,25 @@ func TestOpenPositionSuccess(t *testing.T) {
 	}{
 		{
 			name:                     "new long position",
-			traderFunds:              sdk.NewCoins(sdk.NewInt64Coin(denoms.NUSD, 1020)),
+			traderFunds:              sdk.NewCoins(sdk.NewInt64Coin(denoms.NUSD, 1_200_000)),
 			initialPosition:          nil,
 			side:                     perpammtypes.Direction_LONG,
-			margin:                   sdk.NewInt(1000),
+			margin:                   sdk.NewInt(1_000_000),
 			leverage:                 sdk.NewDec(10),
 			baseLimit:                sdk.ZeroDec(),
-			expectedMargin:           sdk.NewDec(1000),
-			expectedOpenNotional:     sdk.NewDec(10_000),
-			expectedSize:             sdk.MustNewDecFromStr("9999.999900000001"),
-			expectedPositionNotional: sdk.NewDec(10_000),
+			expectedMargin:           sdk.NewDec(1_000_000),
+			expectedOpenNotional:     sdk.NewDec(10_000_000),
+			expectedSize:             sdk.MustNewDecFromStr("9999900.000999990000099999"),
+			expectedPositionNotional: sdk.NewDec(10_000_000),
 			expectedUnrealizedPnl:    sdk.ZeroDec(),
 			expectedRealizedPnl:      sdk.ZeroDec(),
-			expectedMarginToVault:    sdk.NewDec(1000),
-			expectedMarkPrice:        sdk.MustNewDecFromStr("1.0000000200000001"),
+			expectedMarginToVault:    sdk.NewDec(1_000_000),
+			expectedMarkPrice:        sdk.MustNewDecFromStr("1.000020000100000000"),
 		},
 		{
 			name:        "existing long position, go more long",
-			traderFunds: sdk.NewCoins(sdk.NewInt64Coin(denoms.NUSD, 1020)),
-			initialPosition: &perptypes.Position{
+			traderFunds: sdk.NewCoins(sdk.NewInt64Coin(denoms.NUSD, 1_200_000)),
+			initialPosition: &types.Position{
 				Pair:                            asset.Registry.Pair(denoms.BTC, denoms.NUSD),
 				Size_:                           sdk.NewDec(10_000),
 				Margin:                          sdk.NewDec(1000),
@@ -209,65 +208,65 @@ func TestOpenPositionSuccess(t *testing.T) {
 				BlockNumber:                     1,
 			},
 			side:                     perpammtypes.Direction_LONG,
-			margin:                   sdk.NewInt(1000),
+			margin:                   sdk.NewInt(1_001_000),
 			leverage:                 sdk.NewDec(10),
 			baseLimit:                sdk.ZeroDec(),
-			expectedMargin:           sdk.NewDec(2000),
-			expectedOpenNotional:     sdk.NewDec(20_000),
-			expectedSize:             sdk.MustNewDecFromStr("19999.999900000001"),
-			expectedPositionNotional: sdk.MustNewDecFromStr("20000.000099999999"),
-			expectedUnrealizedPnl:    sdk.MustNewDecFromStr("0.000099999999"),
+			expectedMargin:           sdk.NewDec(1_002_000),
+			expectedOpenNotional:     sdk.NewDec(10_020_000),
+			expectedSize:             sdk.MustNewDecFromStr("10019899.800902992961040460"),
+			expectedPositionNotional: sdk.MustNewDecFromStr("10020000.200100998998969980"),
+			expectedUnrealizedPnl:    sdk.MustNewDecFromStr("0.200100998998969980"),
 			expectedRealizedPnl:      sdk.ZeroDec(),
-			expectedMarginToVault:    sdk.NewDec(1000),
-			expectedMarkPrice:        sdk.MustNewDecFromStr("1.0000000200000001"),
+			expectedMarginToVault:    sdk.NewDec(1001000),
+			expectedMarkPrice:        sdk.MustNewDecFromStr("1.000020020100200100"),
 		},
 		{
 			name:        "existing long position, decrease a bit",
-			traderFunds: sdk.NewCoins(sdk.NewInt64Coin(denoms.NUSD, 10)),
-			initialPosition: &perptypes.Position{
+			traderFunds: sdk.NewCoins(sdk.NewInt64Coin(denoms.NUSD, 1_000_000)),
+			initialPosition: &types.Position{
 				Pair:                            asset.Registry.Pair(denoms.BTC, denoms.NUSD),
-				Size_:                           sdk.NewDec(10_000),
-				Margin:                          sdk.NewDec(1000),
-				OpenNotional:                    sdk.NewDec(10_000),
+				Size_:                           sdk.NewDec(20_000_000),
+				Margin:                          sdk.NewDec(2_000_000),
+				OpenNotional:                    sdk.NewDec(20_000_000),
 				LatestCumulativePremiumFraction: sdk.ZeroDec(),
 				BlockNumber:                     1,
 			},
 			side:                     perpammtypes.Direction_SHORT,
-			margin:                   sdk.NewInt(500),
+			margin:                   sdk.NewInt(1_000_000),
 			leverage:                 sdk.NewDec(10),
 			baseLimit:                sdk.ZeroDec(),
-			expectedMargin:           sdk.MustNewDecFromStr("999.99995000000025"),
-			expectedOpenNotional:     sdk.MustNewDecFromStr("4999.99995000000025"),
-			expectedSize:             sdk.MustNewDecFromStr("4999.999974999999875"),
-			expectedPositionNotional: sdk.MustNewDecFromStr("4999.999900000001"),
-			expectedUnrealizedPnl:    sdk.MustNewDecFromStr("-0.00004999999925"),
-			expectedRealizedPnl:      sdk.MustNewDecFromStr("-0.00004999999975"),
+			expectedMargin:           sdk.MustNewDecFromStr("1999800.001999940000999980"),
+			expectedOpenNotional:     sdk.MustNewDecFromStr("9999800.001999940000999980"),
+			expectedSize:             sdk.MustNewDecFromStr("9999899.998999989999899999"),
+			expectedPositionNotional: sdk.MustNewDecFromStr("9999600.007999840003199936"),
+			expectedUnrealizedPnl:    sdk.MustNewDecFromStr("-199.994000099997800044"),
+			expectedRealizedPnl:      sdk.MustNewDecFromStr("-199.998000059999000020"),
 			expectedMarginToVault:    sdk.ZeroDec(),
-			expectedMarkPrice:        sdk.MustNewDecFromStr("0.999999990000000025"),
+			expectedMarkPrice:        sdk.MustNewDecFromStr("0.999980000100000000"),
 		},
 		{
 			name:        "existing long position, decrease a lot",
-			traderFunds: sdk.NewCoins(sdk.NewInt64Coin(denoms.NUSD, 1060)),
-			initialPosition: &perptypes.Position{
+			traderFunds: sdk.NewCoins(sdk.NewInt64Coin(denoms.NUSD, 1_200_000)),
+			initialPosition: &types.Position{
 				Pair:                            asset.Registry.Pair(denoms.BTC, denoms.NUSD),
-				Size_:                           sdk.NewDec(10_000),
-				Margin:                          sdk.NewDec(1000),
-				OpenNotional:                    sdk.NewDec(10_000),
+				Size_:                           sdk.NewDec(10_000_000),
+				Margin:                          sdk.NewDec(1_000_000),
+				OpenNotional:                    sdk.NewDec(10_000_000),
 				LatestCumulativePremiumFraction: sdk.ZeroDec(),
 				BlockNumber:                     1,
 			},
 			side:                     perpammtypes.Direction_SHORT,
-			margin:                   sdk.NewInt(3000),
+			margin:                   sdk.NewInt(3_000_000),
 			leverage:                 sdk.NewDec(10),
 			baseLimit:                sdk.ZeroDec(),
-			expectedMargin:           sdk.MustNewDecFromStr("2000.0000099999999"),
-			expectedOpenNotional:     sdk.MustNewDecFromStr("20000.000099999999"),
-			expectedSize:             sdk.MustNewDecFromStr("-20000.000900000027000001"),
-			expectedPositionNotional: sdk.MustNewDecFromStr("20000.000099999999"),
+			expectedMargin:           sdk.MustNewDecFromStr("2000009.999900000999990000"),
+			expectedOpenNotional:     sdk.MustNewDecFromStr("20000099.999000009999900001"),
+			expectedSize:             sdk.MustNewDecFromStr("-20000900.027000810024300729"),
+			expectedPositionNotional: sdk.MustNewDecFromStr("20000099.999000009999900001"),
 			expectedUnrealizedPnl:    sdk.ZeroDec(),
-			expectedRealizedPnl:      sdk.MustNewDecFromStr("-0.000099999999"),
-			expectedMarginToVault:    sdk.MustNewDecFromStr("1000.0001099999989"),
-			expectedMarkPrice:        sdk.MustNewDecFromStr("0.9999999400000009"),
+			expectedRealizedPnl:      sdk.MustNewDecFromStr("-99.999000009999900001"),
+			expectedMarginToVault:    sdk.MustNewDecFromStr("1000109.998900010999890001"),
+			expectedMarkPrice:        sdk.MustNewDecFromStr("0.999940000900000000"),
 		},
 		{
 			name:                     "new long position just under fluctuation limit",
@@ -288,25 +287,25 @@ func TestOpenPositionSuccess(t *testing.T) {
 		},
 		{
 			name:                     "new short position",
-			traderFunds:              sdk.NewCoins(sdk.NewInt64Coin(denoms.NUSD, 1020)),
+			traderFunds:              sdk.NewCoins(sdk.NewInt64Coin(denoms.NUSD, 1_200_000)),
 			initialPosition:          nil,
 			side:                     perpammtypes.Direction_SHORT,
-			margin:                   sdk.NewInt(1000),
+			margin:                   sdk.NewInt(1_000_000),
 			leverage:                 sdk.NewDec(10),
 			baseLimit:                sdk.ZeroDec(),
-			expectedMargin:           sdk.NewDec(1000),
-			expectedOpenNotional:     sdk.NewDec(10_000),
-			expectedSize:             sdk.MustNewDecFromStr("-10000.000100000001"),
-			expectedPositionNotional: sdk.NewDec(10_000),
+			expectedMargin:           sdk.NewDec(1_000_000),
+			expectedOpenNotional:     sdk.NewDec(10_000_000),
+			expectedSize:             sdk.MustNewDecFromStr("-10000100.001000010000100001"),
+			expectedPositionNotional: sdk.NewDec(10_000_000),
 			expectedUnrealizedPnl:    sdk.ZeroDec(),
 			expectedRealizedPnl:      sdk.ZeroDec(),
-			expectedMarginToVault:    sdk.NewDec(1000),
-			expectedMarkPrice:        sdk.MustNewDecFromStr("0.9999999800000001"),
+			expectedMarginToVault:    sdk.NewDec(1_000_000),
+			expectedMarkPrice:        sdk.MustNewDecFromStr("0.999980000100000000"),
 		},
 		{
 			name:        "existing short position, go more short",
-			traderFunds: sdk.NewCoins(sdk.NewInt64Coin(denoms.NUSD, 1020)),
-			initialPosition: &perptypes.Position{
+			traderFunds: sdk.NewCoins(sdk.NewInt64Coin(denoms.NUSD, 1_200_000)),
+			initialPosition: &types.Position{
 				Pair:                            asset.Registry.Pair(denoms.BTC, denoms.NUSD),
 				Size_:                           sdk.NewDec(-10_000),
 				Margin:                          sdk.NewDec(1000),
@@ -315,65 +314,65 @@ func TestOpenPositionSuccess(t *testing.T) {
 				BlockNumber:                     1,
 			},
 			side:                     perpammtypes.Direction_SHORT,
-			margin:                   sdk.NewInt(1000),
+			margin:                   sdk.NewInt(1_000_000),
 			leverage:                 sdk.NewDec(10),
 			baseLimit:                sdk.ZeroDec(),
-			expectedMargin:           sdk.NewDec(2000),
-			expectedOpenNotional:     sdk.NewDec(20_000),
-			expectedSize:             sdk.MustNewDecFromStr("-20000.000100000001"),
-			expectedPositionNotional: sdk.MustNewDecFromStr("19999.999899999999"),
-			expectedUnrealizedPnl:    sdk.MustNewDecFromStr("0.000100000001"),
+			expectedMargin:           sdk.NewDec(1_001_000),
+			expectedOpenNotional:     sdk.NewDec(10_010_000),
+			expectedSize:             sdk.MustNewDecFromStr("-10010100.001000010000100001"),
+			expectedPositionNotional: sdk.MustNewDecFromStr("10009999.800100997001029960"),
+			expectedUnrealizedPnl:    sdk.MustNewDecFromStr("0.199899002998970040"),
 			expectedRealizedPnl:      sdk.ZeroDec(),
-			expectedMarginToVault:    sdk.NewDec(1000),
-			expectedMarkPrice:        sdk.MustNewDecFromStr("0.9999999800000001"),
+			expectedMarginToVault:    sdk.NewDec(1_000_000),
+			expectedMarkPrice:        sdk.MustNewDecFromStr("0.999980000100000000"),
 		},
 		{
 			name:        "existing short position, decrease a bit",
-			traderFunds: sdk.NewCoins(sdk.NewInt64Coin(denoms.NUSD, 10)),
-			initialPosition: &perptypes.Position{
+			traderFunds: sdk.NewCoins(sdk.NewInt64Coin(denoms.NUSD, 1_200_000)),
+			initialPosition: &types.Position{
 				Pair:                            asset.Registry.Pair(denoms.BTC, denoms.NUSD),
-				Size_:                           sdk.NewDec(-10_000),
-				Margin:                          sdk.NewDec(1000),
-				OpenNotional:                    sdk.NewDec(10_000),
+				Size_:                           sdk.NewDec(-20_000_000),
+				Margin:                          sdk.NewDec(2_000_000),
+				OpenNotional:                    sdk.NewDec(20_000_000),
 				LatestCumulativePremiumFraction: sdk.ZeroDec(),
 				BlockNumber:                     1,
 			},
 			side:                     perpammtypes.Direction_LONG,
-			margin:                   sdk.NewInt(500),
+			margin:                   sdk.NewInt(1_000_000),
 			leverage:                 sdk.NewDec(10),
 			baseLimit:                sdk.ZeroDec(),
-			expectedMargin:           sdk.MustNewDecFromStr("999.99994999999975"),
-			expectedOpenNotional:     sdk.MustNewDecFromStr("5000.00005000000025"),
-			expectedSize:             sdk.MustNewDecFromStr("-5000.000024999999875"),
-			expectedPositionNotional: sdk.MustNewDecFromStr("5000.000100000001"),
-			expectedUnrealizedPnl:    sdk.MustNewDecFromStr("-0.00005000000075"),
-			expectedRealizedPnl:      sdk.MustNewDecFromStr("-0.00005000000025"),
+			expectedMargin:           sdk.MustNewDecFromStr("1999799.997999939998999980"),
+			expectedOpenNotional:     sdk.MustNewDecFromStr("10000200.002000060001000020"),
+			expectedSize:             sdk.MustNewDecFromStr("-10000099.999000009999900001"),
+			expectedPositionNotional: sdk.MustNewDecFromStr("10000400.008000160003200064"),
+			expectedUnrealizedPnl:    sdk.MustNewDecFromStr("-200.006000100002200044"),
+			expectedRealizedPnl:      sdk.MustNewDecFromStr("-200.002000060001000020"),
 			expectedMarginToVault:    sdk.ZeroDec(),
-			expectedMarkPrice:        sdk.MustNewDecFromStr("1.000000010000000025"),
+			expectedMarkPrice:        sdk.MustNewDecFromStr("1.000020000100000000"),
 		},
 		{
 			name:        "existing short position, decrease a lot",
-			traderFunds: sdk.NewCoins(sdk.NewInt64Coin(denoms.NUSD, 1060)),
-			initialPosition: &perptypes.Position{
+			traderFunds: sdk.NewCoins(sdk.NewInt64Coin(denoms.NUSD, 1_200_000)),
+			initialPosition: &types.Position{
 				Pair:                            asset.Registry.Pair(denoms.BTC, denoms.NUSD),
-				Size_:                           sdk.NewDec(-10_000),
-				Margin:                          sdk.NewDec(1000),
-				OpenNotional:                    sdk.NewDec(10_000),
+				Size_:                           sdk.NewDec(-10_000_000),
+				Margin:                          sdk.NewDec(1_000_000),
+				OpenNotional:                    sdk.NewDec(10_000_000),
 				LatestCumulativePremiumFraction: sdk.ZeroDec(),
 				BlockNumber:                     1,
 			},
 			side:                     perpammtypes.Direction_LONG,
-			margin:                   sdk.NewInt(3000),
+			margin:                   sdk.NewInt(3_000_000),
 			leverage:                 sdk.NewDec(10),
 			baseLimit:                sdk.ZeroDec(),
-			expectedMargin:           sdk.MustNewDecFromStr("1999.9999899999999"),
-			expectedOpenNotional:     sdk.MustNewDecFromStr("19999.999899999999"),
-			expectedSize:             sdk.MustNewDecFromStr("19999.999100000026999999"),
-			expectedPositionNotional: sdk.MustNewDecFromStr("19999.999899999999"),
+			expectedMargin:           sdk.MustNewDecFromStr("1999989.999899998999990000"),
+			expectedOpenNotional:     sdk.MustNewDecFromStr("19999899.998999989999899999"),
+			expectedSize:             sdk.MustNewDecFromStr("19999100.026999190024299271"),
+			expectedPositionNotional: sdk.MustNewDecFromStr("19999899.998999989999899999"),
 			expectedUnrealizedPnl:    sdk.ZeroDec(),
-			expectedRealizedPnl:      sdk.MustNewDecFromStr("-0.000100000001"),
-			expectedMarginToVault:    sdk.MustNewDecFromStr("1000.0000900000009"),
-			expectedMarkPrice:        sdk.MustNewDecFromStr("1.0000000600000009"),
+			expectedRealizedPnl:      sdk.MustNewDecFromStr("-100.001000010000100001"),
+			expectedMarginToVault:    sdk.MustNewDecFromStr("1000090.000900009000090001"),
+			expectedMarkPrice:        sdk.MustNewDecFromStr("1.000060000900000000"),
 		},
 		{
 			name:                     "new short position just under fluctuation limit",
@@ -417,7 +416,7 @@ func TestOpenPositionSuccess(t *testing.T) {
 				},
 				sdk.OneDec(),
 			))
-			keeper.SetPairMetadata(nibiruApp.PerpKeeper, ctx, perptypes.PairMetadata{
+			keeper.SetPairMetadata(nibiruApp.PerpKeeper, ctx, types.PairMetadata{
 				Pair:                            asset.Registry.Pair(denoms.BTC, denoms.NUSD),
 				LatestCumulativePremiumFraction: sdk.ZeroDec(),
 			})
@@ -468,7 +467,7 @@ func TestOpenPositionSuccess(t *testing.T) {
 			feePoolFee := nibiruApp.PerpKeeper.GetParams(ctx).FeePoolFeeRatio.Mul(exchangedNotional).RoundInt()
 			ecosystemFundFee := nibiruApp.PerpKeeper.GetParams(ctx).EcosystemFundFeeRatio.Mul(exchangedNotional).RoundInt()
 
-			testutil.RequireHasTypedEvent(t, ctx, &perptypes.PositionChangedEvent{
+			testutil.RequireHasTypedEvent(t, ctx, &types.PositionChangedEvent{
 				Pair:               asset.Registry.Pair(denoms.BTC, denoms.NUSD),
 				TraderAddress:      traderAddr.String(),
 				Margin:             sdk.NewCoin(denoms.NUSD, tc.expectedMargin.RoundInt()),
@@ -497,7 +496,7 @@ func TestOpenPositionError(t *testing.T) {
 		// market params
 		poolTradeLimitRatio sdk.Dec
 
-		initialPosition *perptypes.Position
+		initialPosition *types.Position
 
 		// position arguments
 		side      perpammtypes.Direction
@@ -509,53 +508,63 @@ func TestOpenPositionError(t *testing.T) {
 	}{
 		{
 			name:                "not enough trader funds",
-			traderFunds:         sdk.NewCoins(sdk.NewInt64Coin(denoms.NUSD, 999)),
+			traderFunds:         sdk.NewCoins(sdk.NewInt64Coin(denoms.NUSD, 999_000)),
 			poolTradeLimitRatio: sdk.OneDec(),
 			initialPosition:     nil,
 			side:                perpammtypes.Direction_LONG,
-			margin:              sdk.NewInt(1000),
+			margin:              sdk.NewInt(1_000_000),
 			leverage:            sdk.NewDec(10),
 			baseLimit:           sdk.ZeroDec(),
 			expectedErr:         sdkerrors.ErrInsufficientFunds,
 		},
 		{
+			name:                "minimum position of 1 USD",
+			traderFunds:         sdk.NewCoins(sdk.NewInt64Coin(denoms.NUSD, 1_000)),
+			poolTradeLimitRatio: sdk.OneDec(),
+			side:                perpammtypes.Direction_LONG,
+			margin:              sdk.NewInt(1_000),
+			leverage:            sdk.NewDec(10),
+			baseLimit:           sdk.ZeroDec(),
+			expectedErr:         types.ErrQuoteAmountIsTooSmall,
+		},
+		{
 			name:                "position has bad debt",
 			traderFunds:         sdk.NewCoins(sdk.NewInt64Coin(denoms.NUSD, 999)),
 			poolTradeLimitRatio: sdk.OneDec(),
-			initialPosition: &perptypes.Position{
+			initialPosition: &types.Position{
 				Pair:                            asset.Registry.Pair(denoms.BTC, denoms.NUSD),
 				Size_:                           sdk.OneDec(),
-				Margin:                          sdk.NewDec(1000),
-				OpenNotional:                    sdk.NewDec(10_000),
+				Margin:                          sdk.NewDec(1_000_000),
+				OpenNotional:                    sdk.NewDec(10_000_000),
 				LatestCumulativePremiumFraction: sdk.ZeroDec(),
 				BlockNumber:                     1,
 			},
 			side:        perpammtypes.Direction_LONG,
-			margin:      sdk.NewInt(1),
+			margin:      sdk.NewInt(1_000_000),
 			leverage:    sdk.OneDec(),
 			baseLimit:   sdk.ZeroDec(),
-			expectedErr: perptypes.ErrMarginRatioTooLow,
+			expectedErr: types.ErrMarginRatioTooLow,
 		},
 		{
 			name:                "new long position not over base limit",
-			traderFunds:         sdk.NewCoins(sdk.NewInt64Coin(denoms.NUSD, 1020)),
+			traderFunds:         sdk.NewCoins(sdk.NewInt64Coin(denoms.NUSD, 1_020_000)),
 			poolTradeLimitRatio: sdk.OneDec(),
 			initialPosition:     nil,
 			side:                perpammtypes.Direction_LONG,
-			margin:              sdk.NewInt(1000),
+			margin:              sdk.NewInt(1_000_000),
 			leverage:            sdk.NewDec(10),
-			baseLimit:           sdk.NewDec(10_000),
+			baseLimit:           sdk.NewDec(10_000_000),
 			expectedErr:         perpammtypes.ErrAssetFailsUserLimit,
 		},
 		{
 			name:                "new short position not under base limit",
-			traderFunds:         sdk.NewCoins(sdk.NewInt64Coin(denoms.NUSD, 1020)),
+			traderFunds:         sdk.NewCoins(sdk.NewInt64Coin(denoms.NUSD, 1020_000)),
 			poolTradeLimitRatio: sdk.OneDec(),
 			initialPosition:     nil,
 			side:                perpammtypes.Direction_SHORT,
-			margin:              sdk.NewInt(1000),
+			margin:              sdk.NewInt(1_000_000),
 			leverage:            sdk.NewDec(10),
-			baseLimit:           sdk.NewDec(10_000),
+			baseLimit:           sdk.NewDec(10_000_000),
 			expectedErr:         perpammtypes.ErrAssetFailsUserLimit,
 		},
 		{
@@ -567,40 +576,40 @@ func TestOpenPositionError(t *testing.T) {
 			margin:              sdk.NewInt(0),
 			leverage:            sdk.NewDec(10),
 			baseLimit:           sdk.NewDec(10_000),
-			expectedErr:         perptypes.ErrQuoteAmountIsZero,
+			expectedErr:         types.ErrQuoteAmountIsZero,
 		},
 		{
 			name:                "leverage amount is zero",
-			traderFunds:         sdk.NewCoins(sdk.NewInt64Coin(denoms.NUSD, 1020)),
+			traderFunds:         sdk.NewCoins(sdk.NewInt64Coin(denoms.NUSD, 1020_000)),
 			poolTradeLimitRatio: sdk.OneDec(),
 			initialPosition:     nil,
 			side:                perpammtypes.Direction_SHORT,
-			margin:              sdk.NewInt(1000),
+			margin:              sdk.NewInt(1_000_000),
 			leverage:            sdk.NewDec(0),
-			baseLimit:           sdk.NewDec(10_000),
-			expectedErr:         perptypes.ErrLeverageIsZero,
+			baseLimit:           sdk.NewDec(10_000_000),
+			expectedErr:         types.ErrLeverageIsZero,
 		},
 		{
 			name:                "leverage amount is too high - SELL",
-			traderFunds:         sdk.NewCoins(sdk.NewInt64Coin(denoms.NUSD, 1020)),
+			traderFunds:         sdk.NewCoins(sdk.NewInt64Coin(denoms.NUSD, 1020_000)),
 			poolTradeLimitRatio: sdk.OneDec(),
 			initialPosition:     nil,
 			side:                perpammtypes.Direction_SHORT,
-			margin:              sdk.NewInt(100),
+			margin:              sdk.NewInt(1_000_000),
 			leverage:            sdk.NewDec(100),
-			baseLimit:           sdk.NewDec(11_000),
-			expectedErr:         perptypes.ErrLeverageIsTooHigh,
+			baseLimit:           sdk.NewDec(11_000_000),
+			expectedErr:         types.ErrLeverageIsTooHigh,
 		},
 		{
 			name:                "leverage amount is too high - BUY",
-			traderFunds:         sdk.NewCoins(sdk.NewInt64Coin(denoms.NUSD, 1020)),
+			traderFunds:         sdk.NewCoins(sdk.NewInt64Coin(denoms.NUSD, 1020_000)),
 			poolTradeLimitRatio: sdk.OneDec(),
 			initialPosition:     nil,
 			side:                perpammtypes.Direction_LONG,
-			margin:              sdk.NewInt(100),
+			margin:              sdk.NewInt(1_000_000),
 			leverage:            sdk.NewDec(16),
 			baseLimit:           sdk.NewDec(0),
-			expectedErr:         perptypes.ErrLeverageIsTooHigh,
+			expectedErr:         types.ErrLeverageIsTooHigh,
 		},
 		{
 			name:                "new long position over fluctuation limit",
@@ -672,7 +681,7 @@ func TestOpenPositionError(t *testing.T) {
 				},
 				sdk.OneDec(),
 			))
-			keeper.SetPairMetadata(nibiruApp.PerpKeeper, ctx, perptypes.PairMetadata{
+			keeper.SetPairMetadata(nibiruApp.PerpKeeper, ctx, types.PairMetadata{
 				Pair:                            asset.Registry.Pair(denoms.BTC, denoms.NUSD),
 				LatestCumulativePremiumFraction: sdk.ZeroDec(),
 			})
@@ -715,7 +724,7 @@ func TestOpenPositionInvalidPair(t *testing.T) {
 				baseLimit := sdk.NewDec(150)
 				resp, err := nibiruApp.PerpKeeper.OpenPosition(
 					ctx, pair, side, trader, quote, leverage, baseLimit)
-				require.ErrorContains(t, err, perptypes.ErrPairNotFound.Error())
+				require.ErrorContains(t, err, types.ErrPairNotFound.Error())
 				require.Nil(t, resp)
 			},
 		},
@@ -731,8 +740,8 @@ func TestOpenPositionInvalidPair(t *testing.T) {
 				require.NoError(t, nibiruApp.PerpAmmKeeper.CreatePool(
 					ctx,
 					pair,
-					sdk.NewDec(5*common.TO_MICRO), //
-					sdk.NewDec(5*common.TO_MICRO), // 5 tokens
+					sdk.NewDec(500*common.TO_MICRO), //
+					sdk.NewDec(500*common.TO_MICRO), // 5 tokens
 					perpammtypes.MarketConfig{
 						FluctuationLimitRatio:  sdk.MustNewDecFromStr("0.1"),
 						MaintenanceMarginRatio: sdk.MustNewDecFromStr("0.0625"),
@@ -748,9 +757,9 @@ func TestOpenPositionInvalidPair(t *testing.T) {
 				t.Log("Attempt to open long position (expected unsuccessful)")
 				trader := testutil.AccAddress()
 				side := perpammtypes.Direction_LONG
-				quote := sdk.NewInt(60)
+				quote := sdk.NewInt(1_000_000)
 				leverage := sdk.NewDec(10)
-				baseLimit := sdk.NewDec(150)
+				baseLimit := sdk.NewDec(0)
 				resp, err := nibiruApp.PerpKeeper.OpenPosition(
 					ctx, pair, side, trader, quote, leverage, baseLimit)
 				require.ErrorIs(t, err, collections.ErrNotFound)

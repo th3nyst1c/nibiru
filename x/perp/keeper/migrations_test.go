@@ -11,9 +11,9 @@ import (
 	"github.com/NibiruChain/nibiru/x/common/denoms"
 	"github.com/NibiruChain/nibiru/x/common/testutil"
 	"github.com/NibiruChain/nibiru/x/common/testutil/testapp"
-	"github.com/NibiruChain/nibiru/x/perp/amm/types"
+	perpammtypes "github.com/NibiruChain/nibiru/x/perp/amm/types"
 	"github.com/NibiruChain/nibiru/x/perp/keeper"
-	perptypes "github.com/NibiruChain/nibiru/x/perp/types"
+	"github.com/NibiruChain/nibiru/x/perp/types/v1"
 )
 
 func TestFrom2To3(t *testing.T) {
@@ -22,13 +22,14 @@ func TestFrom2To3(t *testing.T) {
 	pairBtcUsd := asset.Registry.Pair(denoms.BTC, denoms.NUSD)
 
 	testCases := []struct {
-		name         string
-		positions    []perptypes.Position
-		expectedBias sdk.Dec
+		name               string
+		positions          []types.Position
+		expectedTotalLong  sdk.Dec
+		expectedTotalShort sdk.Dec
 	}{
 		{
 			"one position long",
-			[]perptypes.Position{
+			[]types.Position{
 				{
 					TraderAddress: alice.String(),
 					Pair:          pairBtcUsd,
@@ -36,10 +37,11 @@ func TestFrom2To3(t *testing.T) {
 				},
 			},
 			sdk.MustNewDecFromStr("10000000"),
+			sdk.ZeroDec(),
 		},
 		{
 			"two long positions",
-			[]perptypes.Position{
+			[]types.Position{
 				{
 					TraderAddress: alice.String(),
 					Pair:          pairBtcUsd,
@@ -52,10 +54,11 @@ func TestFrom2To3(t *testing.T) {
 				},
 			},
 			sdk.MustNewDecFromStr("20000000"),
+			sdk.ZeroDec(),
 		},
 		{
 			"one long position and one short position: long bigger than short",
-			[]perptypes.Position{
+			[]types.Position{
 				{
 					TraderAddress: alice.String(),
 					Pair:          pairBtcUsd,
@@ -67,11 +70,12 @@ func TestFrom2To3(t *testing.T) {
 					Size_:         sdk.MustNewDecFromStr("-5000000"),
 				},
 			},
+			sdk.MustNewDecFromStr("10000000"),
 			sdk.MustNewDecFromStr("5000000"),
 		},
 		{
 			"one long position and one short position: short bigger than long",
-			[]perptypes.Position{
+			[]types.Position{
 				{
 					TraderAddress: alice.String(),
 					Pair:          pairBtcUsd,
@@ -83,11 +87,12 @@ func TestFrom2To3(t *testing.T) {
 					Size_:         sdk.MustNewDecFromStr("-25000000"),
 				},
 			},
-			sdk.MustNewDecFromStr("-15000000"),
+			sdk.MustNewDecFromStr("10000000"),
+			sdk.MustNewDecFromStr("25000000"),
 		},
 		{
 			"one long position and one short position: equal long and short",
-			[]perptypes.Position{
+			[]types.Position{
 				{
 					TraderAddress: alice.String(),
 					Pair:          pairBtcUsd,
@@ -99,7 +104,8 @@ func TestFrom2To3(t *testing.T) {
 					Size_:         sdk.MustNewDecFromStr("-10000000"),
 				},
 			},
-			sdk.ZeroDec(),
+			sdk.MustNewDecFromStr("10000000"),
+			sdk.MustNewDecFromStr("10000000"),
 		},
 	}
 
@@ -109,17 +115,19 @@ func TestFrom2To3(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			app, ctx := testapp.NewNibiruTestAppAndContext(true)
 
-			market := types.Market{
+			market := perpammtypes.Market{
 				Pair:         asset.Registry.Pair(denoms.BTC, denoms.NUSD),
 				BaseReserve:  sdk.MustNewDecFromStr("10000000"),
 				QuoteReserve: sdk.MustNewDecFromStr("20000000"),
-				Bias:         sdk.ZeroDec(),
+				TotalLong:    sdk.ZeroDec(),
+				TotalShort:   sdk.ZeroDec(),
 			}
 			app.PerpAmmKeeper.Pools.Insert(ctx, market.Pair, market)
 
 			savedPool, err := app.PerpAmmKeeper.Pools.Get(ctx, market.Pair)
 			require.NoError(t, err)
-			require.Equal(t, sdk.ZeroDec(), savedPool.Bias)
+			require.Equal(t, sdk.ZeroDec(), savedPool.TotalLong)
+			require.Equal(t, sdk.ZeroDec(), savedPool.TotalShort)
 			require.Equal(t, sdk.ZeroDec(), savedPool.PegMultiplier)
 
 			for _, pos := range tc.positions {
@@ -136,7 +144,8 @@ func TestFrom2To3(t *testing.T) {
 
 			savedPool, err = app.PerpAmmKeeper.Pools.Get(ctx, market.Pair)
 			require.NoError(t, err)
-			require.Equal(t, tc.expectedBias, savedPool.Bias)
+			require.Equal(t, tc.expectedTotalLong, savedPool.TotalLong)
+			require.Equal(t, tc.expectedTotalShort, savedPool.TotalShort)
 			require.Equal(t, sdk.OneDec(), savedPool.PegMultiplier)
 		})
 	}

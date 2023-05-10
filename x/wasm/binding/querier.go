@@ -8,15 +8,12 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 
-	"github.com/NibiruChain/nibiru/x/wasm/binding/cw_struct"
-
 	"github.com/NibiruChain/nibiru/x/common/asset"
-
-	perpkeeper "github.com/NibiruChain/nibiru/x/perp/keeper"
-	perptypes "github.com/NibiruChain/nibiru/x/perp/types"
-
 	perpammkeeper "github.com/NibiruChain/nibiru/x/perp/amm/keeper"
 	perpammtypes "github.com/NibiruChain/nibiru/x/perp/amm/types"
+	perpkeeper "github.com/NibiruChain/nibiru/x/perp/keeper"
+	perptypes "github.com/NibiruChain/nibiru/x/perp/types/v1"
+	"github.com/NibiruChain/nibiru/x/wasm/binding/cw_struct"
 )
 
 type QueryPlugin struct {
@@ -157,7 +154,8 @@ func (perpExt *PerpQuerier) AllMarkets(
 			QuoteReserve: pbMarket.QuoteReserve,
 			SqrtDepth:    pbMarket.SqrtDepth,
 			Depth:        pbPrice.SwapInvariant,
-			Bias:         pbMarket.Bias,
+			TotalLong:    pbMarket.TotalLong,
+			TotalShort:   pbMarket.TotalShort,
 			PegMult:      pbMarket.PegMultiplier,
 			Config: &cw_struct.MarketConfig{
 				TradeLimitRatio:        pbMarket.Config.TradeLimitRatio,

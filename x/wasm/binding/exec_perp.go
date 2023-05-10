@@ -7,7 +7,7 @@ import (
 	"github.com/NibiruChain/nibiru/x/common/asset"
 	perpammtypes "github.com/NibiruChain/nibiru/x/perp/amm/types"
 	perpkeeper "github.com/NibiruChain/nibiru/x/perp/keeper"
-	perptypes "github.com/NibiruChain/nibiru/x/perp/types"
+	perptypes "github.com/NibiruChain/nibiru/x/perp/types/v1"
 	"github.com/NibiruChain/nibiru/x/wasm/binding/cw_struct"
 )
 
@@ -141,5 +141,25 @@ func (exec *ExecutorPerp) PegShift(
 		contractAddr,
 		pair,
 		cwMsg.PegMult,
+	)
+}
+
+func (exec *ExecutorPerp) DepthShift(
+	cwMsg *cw_struct.DepthShift, contractAddr sdk.AccAddress, ctx sdk.Context,
+) (err error) {
+	if cwMsg == nil {
+		return wasmvmtypes.InvalidRequest{Err: "null pool swap invariant multiplier msg"}
+	}
+
+	pair, err := asset.TryNewPair(cwMsg.Pair)
+	if err != nil {
+		return err
+	}
+
+	return exec.Perp.EditPoolSwapInvariant(
+		ctx,
+		contractAddr,
+		pair,
+		cwMsg.DepthMult,
 	)
 }
