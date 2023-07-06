@@ -8,7 +8,6 @@ services:
       args:
         MNEMONIC: guard cream sadness conduct invite crumble clock pudding hole grit liar hotel maid produce squeeze return argue turtle know drive eight casino maze host
     ports:
-      - 26656:26656
       - 26657:26657
       - 1317:1317
       - 9090:9090
@@ -27,7 +26,7 @@ services:
       - 8000:8000
 
   liquidation-db:
-    image: postgres:latest
+    image: postgres:14
     restart: always
     environment:
       POSTGRES_PASSWORD: postgres
@@ -52,7 +51,7 @@ services:
       - VPOOLS=ubtc:unusd
 
   heart-monitor-db:
-    image: postgres:latest
+    image: postgres:14
     restart: always
     environment:
       POSTGRES_PASSWORD: postgres
@@ -66,15 +65,13 @@ services:
     restart: always
     environment:
       - DATABASE_URI=postgresql+psycopg2://postgres:postgres@heart-monitor-db:5432/heart-monitor
-      - ENVIRONMENT=localnet
-      - NETWORK_INSECURE=true
       - LCD_ENDPOINT=http://nibiru:1317
       - GRPC_ENDPOINT=tcp://nibiru:9090
       - TENDERMINT_RPC_ENDPOINT=http://nibiru:26657
-      - WEBSOCKET_ENDPOINT=ws://nibiru:26657/websocket
-      - VALIDATOR_MNEMONIC=guard cream sadness conduct invite crumble clock pudding hole grit liar hotel maid produce squeeze return argue turtle know drive eight casino maze host
+      - WALLET_MNEMONIC=guard cream sadness conduct invite crumble clock pudding hole grit liar hotel maid produce squeeze return argue turtle know drive eight casino maze host
       - MODULE_ACCOUNTS={'nibi1yl6hdjhmkf37639730gffanpzndzdpmhe6js7s':'transfer','nibi1fl48vsnmsdzcv85q5d2q4z5ajdha8yu3z7dksy':'bonded_tokens_pool','nibi1trh2mamq64u4g042zfeevvjk4cukrthvppfnc7':'perp_ef','nibi1tygms3xhhs3yv487phx3dw4a95jn7t7lk738xs':'not_bonded_tokens_pool','nibi10d07y265gmmuvt4z0w9aw880jnsr700jd8hulq':'gov','nibi1jv65s3grqf6v6jl3dp4t6c9t9rk99cd8s6q9qv':'distribution','nibi143kdcynewz7d08fmlu0ugtnn9sv8vljxwp7eug':'fee_pool','nibi1m3h30wlvsf8llruxtpukdvsy0km2kum8l5rpwn':'mint','nibi1umc2r7a58jy3jmw0e0hctyy0rx45chmurptawl':'vault','nibi17xpfvakm2amg962yls6f84z3kell8c5l8u8ezw':'fee_collector'}
       - LOGGER_TIMESTAMP=true
+      - NO_PARTITIONS=true
 
   pricefeeder:
     image: ghcr.io/nibiruchain/pricefeeder:0.0.7
@@ -89,9 +86,3 @@ services:
     depends_on:
       nibiru:
         condition: service_started
-
-volumes:
-  bdjuno-repo:
-  bdjuno-docker-entrypoint:
-  bdjuno-genesis:
-  bdjuno-hasura-metadata:
