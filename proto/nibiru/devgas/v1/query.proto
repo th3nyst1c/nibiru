@@ -58,8 +58,7 @@ message QueryFeeSharesRequest {
 // method.
 message QueryFeeSharesResponse {
   // FeeShare is the slice of all stored Reveneue for the deployer
-  repeated nibiru.devgas.v1.FeeShare feeshare = 1
-      [ (gogoproto.nullable) = false ];
+  repeated FeeShare feeshare = 1 [ (gogoproto.nullable) = false ];
 }
 
 // QueryFeeShareRequest is the request type for the Query/FeeShare RPC method.
@@ -71,7 +70,7 @@ message QueryFeeShareRequest {
 // QueryFeeShareResponse is the response type for the Query/FeeShare RPC method.
 message QueryFeeShareResponse {
   // FeeShare is a stored Reveneue for the queried contract
-  nibiru.devgas.v1.FeeShare feeshare = 1 [ (gogoproto.nullable) = false ];
+  FeeShare feeshare = 1 [ (gogoproto.nullable) = false ];
 }
 
 // QueryParamsRequest is the request type for the Query/Params RPC method.
@@ -80,7 +79,7 @@ message QueryParamsRequest {}
 // QueryParamsResponse is the response type for the Query/Params RPC method.
 message QueryParamsResponse {
   // params is the returned FeeShare parameter
-  nibiru.devgas.v1.ModuleParams params = 1 [ (gogoproto.nullable) = false ];
+  ModuleParams params = 1 [ (gogoproto.nullable) = false ];
 }
 
 // QueryFeeSharesByWithdrawerRequest is the request type for the
@@ -93,6 +92,5 @@ message QueryFeeSharesByWithdrawerRequest {
 // QueryFeeSharesByWithdrawerResponse is the response type for the
 // Query/FeeSharesByWithdrawer RPC method.
 message QueryFeeSharesByWithdrawerResponse {
-  repeated nibiru.devgas.v1.FeeShare feeshare = 1
-      [ (gogoproto.nullable) = false ];
+  repeated FeeShare feeshare = 1 [ (gogoproto.nullable) = false ];
 }

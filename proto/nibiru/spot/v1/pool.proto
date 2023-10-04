@@ -33,8 +33,7 @@ message PoolParams {
     (gogoproto.nullable) = false
   ];
 
-  nibiru.spot.v1.PoolType pool_type = 4
-      [ (gogoproto.moretags) = "yaml:\"pool_type\"" ];
+  PoolType pool_type = 4 [ (gogoproto.moretags) = "yaml:\"pool_type\"" ];
 }
 
 // - `balancer`: Balancer are pools defined by the equation xy=k, extended by
@@ -70,7 +69,7 @@ message Pool {
   string address = 2 [ (gogoproto.moretags) = "yaml:\"address\"" ];
 
   // Fees and other pool-specific parameters.
-  nibiru.spot.v1.PoolParams pool_params = 3 [
+  PoolParams pool_params = 3 [
     (gogoproto.moretags) = "yaml:\"pool_params\"",
     (gogoproto.nullable) = false
   ];
