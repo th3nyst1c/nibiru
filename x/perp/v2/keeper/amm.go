@@ -11,10 +11,10 @@ import (
 	types "github.com/NibiruChain/nibiru/x/perp/v2/types"
 )
 
-// EditPriceMultiplier edits the peg multiplier of an amm pool after making
+// PegShift edits the peg multiplier of an amm pool after making
 // sure there's enough money in the perp EF fund to pay for the repeg. These
 // funds get send to the vault to pay for trader's new net margin.
-func (k Keeper) EditPriceMultiplier(
+func (k Keeper) PegShift(
 	ctx sdk.Context,
 	pair asset.Pair,
 	newPriceMultiplier sdk.Dec,

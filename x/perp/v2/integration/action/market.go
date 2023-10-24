@@ -2,16 +2,18 @@ package action
 
 import (
 	sdkmath "cosmossdk.io/math"
-	sdk "github.com/cosmos/cosmos-sdk/types"
+	"errors"
+	"fmt"
 
 	"github.com/NibiruChain/collections"
-
+	"github.com/NibiruChain/nibiru/app"
 	"github.com/NibiruChain/nibiru/x/common/asset"
 	"github.com/NibiruChain/nibiru/x/common/testutil/action"
-
-	"github.com/NibiruChain/nibiru/app"
 	"github.com/NibiruChain/nibiru/x/perp/v2/keeper"
 	"github.com/NibiruChain/nibiru/x/perp/v2/types"
+	sudotypes "github.com/NibiruChain/nibiru/x/sudo/types"
+
+	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
 type logger struct {
@@ -136,7 +138,7 @@ type editPriceMultiplier struct {
 }
 
 func (e editPriceMultiplier) Do(app *app.NibiruApp, ctx sdk.Context) (sdk.Context, error, bool) {
-	err := app.PerpKeeperV2.EditPriceMultiplier(ctx, e.pair, e.newValue)
+	err := app.PerpKeeperV2.PegShift(ctx, e.pair, e.newValue)
 	return ctx, err, true
 }
 
@@ -144,6 +146,30 @@ func EditPriceMultiplier(pair asset.Pair, newValue sdk.Dec) action.Action {
 	return editPriceMultiplier{
 		pair:     pair,
 		newValue: newValue,
+	}
+}
+
+type editPriceMultiplierShoulFail struct {
+	pair     asset.Pair
+	newValue sdk.Dec
+
+	expectedError error
+}
+
+func (e editPriceMultiplierShoulFail) Do(app *app.NibiruApp, ctx sdk.Context) (sdk.Context, error, bool) {
+	err := app.PerpKeeperV2.PegShift(ctx, e.pair, e.newValue)
+	if err == nil && !errors.Is(err, sudotypes.ErrUnauthorized) {
+		return ctx, fmt.Errorf(""), true
+	}
+
+	return ctx, nil, true
+}
+
+func EditPriceMultiplierShouldFail(pair asset.Pair, newValue sdk.Dec, expectedError error) action.Action {
+	return editPriceMultiplierShoulFail{
+		pair:          pair,
+		newValue:      newValue,
+		expectedError: expectedError,
 	}
 }
 
@@ -177,6 +203,7 @@ func (c createPool) Do(app *app.NibiruApp, ctx sdk.Context) (sdk.Context, error,
 		SqrtDepth:       c.amm.SqrtDepth,
 		Market:          &c.market,
 	})
+
 	return ctx, err, true
 }
 

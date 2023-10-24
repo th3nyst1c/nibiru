@@ -137,9 +137,7 @@ func (exec *ExecutorPerp) RemoveMargin(
 	return exec.MsgServer().RemoveMargin(goCtx, sdkMsg)
 }
 
-func (exec *ExecutorPerp) PegShift(
-	cwMsg *bindings.PegShift, contractAddr sdk.AccAddress, ctx sdk.Context,
-) (err error) {
+func (exec *ExecutorPerp) PegShift(cwMsg *bindings.PegShift, ctx sdk.Context) (err error) {
 	if cwMsg == nil {
 		return wasmvmtypes.InvalidRequest{Err: "null msg"}
 	}
@@ -149,9 +147,8 @@ func (exec *ExecutorPerp) PegShift(
 		return err
 	}
 
-	return exec.PerpV2.EditPriceMultiplier(
+	return exec.PerpV2.PegShift(
 		ctx,
-		// contractAddr,
 		pair,
 		cwMsg.PegMult,
 	)

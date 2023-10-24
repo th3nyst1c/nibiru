@@ -138,3 +138,12 @@ func (m msgServer) DonateToEcosystemFund(ctx context.Context, msg *types.MsgDona
 
 	return &types.MsgDonateToEcosystemFundResponse{}, nil
 }
+
+func (m msgServer) PegShift(ctx context.Context, msg *types.MsgPegShift) (*types.MsgPegShiftResponse, error) {
+	err := m.k.PegShift(sdk.UnwrapSDKContext(ctx), msg.Pair, msg.PriceMultiplier)
+	if err != nil {
+		return nil, err
+	}
+
+	return &types.MsgPegShiftResponse{}, nil
+}

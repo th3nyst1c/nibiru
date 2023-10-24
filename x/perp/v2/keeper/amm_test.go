@@ -24,6 +24,15 @@ func TestEditPriceMultipler(t *testing.T) {
 	pair := asset.Registry.Pair(denoms.BTC, denoms.NUSD)
 
 	tests := TestCases{
+		TC("no access to sudo").
+			Given(
+				CreateCustomMarket(pair, WithTotalLong(sdk.NewDec(1000)), WithTotalShort(sdk.NewDec(500))),
+				FundModule(types.VaultModuleAccount, sdk.NewCoins(sdk.NewCoin(denoms.NUSD, sdk.NewInt(1e6)))),
+				FundModule(types.PerpEFModuleAccount, sdk.NewCoins(sdk.NewCoin(denoms.NUSD, sdk.NewInt(1e6)))),
+			).
+			Then(
+				EditPriceMultiplierShouldFail(pair, sdk.NewDec(10), fmt.Errorf("permission denied: unauthorized")),
+			),
 		TC("same price multiplier").
 			Given(
 				CreateCustomMarket(pair, WithTotalLong(sdk.NewDec(1000)), WithTotalShort(sdk.NewDec(500))),
@@ -179,11 +188,11 @@ func TestEditPriceMultiplerFail(t *testing.T) {
 	require.NoError(t, err)
 
 	// Error because of invalid pair
-	err = app.PerpKeeperV2.Admin().EditPriceMultiplier(ctx, asset.MustNewPair("luna:usdt"), sdk.NewDec(-1))
+	err = app.PerpKeeperV2.Admin().PegShift(ctx, asset.MustNewPair("luna:usdt"), sdk.NewDec(-1))
 	require.ErrorContains(t, err, "market luna:usdt not found")
 
 	// Error because of invalid price multiplier
-	err = app.PerpKeeperV2.Admin().EditPriceMultiplier(ctx, pair, sdk.NewDec(-1))
+	err = app.PerpKeeperV2.Admin().PegShift(ctx, pair, sdk.NewDec(-1))
 	require.ErrorIs(t, err, types.ErrNonPositivePegMultiplier)
 
 	// Add market activity
@@ -205,11 +214,11 @@ func TestEditPriceMultiplerFail(t *testing.T) {
 	require.NoError(t, err)
 
 	// Error because no money in perp ef fund
-	err = app.PerpKeeperV2.Admin().EditPriceMultiplier(ctx, pair, sdk.NewDec(3))
+	err = app.PerpKeeperV2.Admin().PegShift(ctx, pair, sdk.NewDec(3))
 	require.ErrorContains(t, err, "not enough fund in perp ef to pay for repeg")
 
 	// Works because it goes in the other way
-	err = app.PerpKeeperV2.Admin().EditPriceMultiplier(ctx, pair, sdk.NewDec(1))
+	err = app.PerpKeeperV2.Admin().PegShift(ctx, pair, sdk.NewDec(1))
 	require.NoError(t, err)
 }
 

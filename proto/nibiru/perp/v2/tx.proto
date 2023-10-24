@@ -28,6 +28,8 @@ service Msg {
 
   rpc DonateToEcosystemFund(MsgDonateToEcosystemFund)
       returns (MsgDonateToEcosystemFundResponse) {}
+
+  rpc PegShift(MsgPegShift) returns (MsgPegShiftResponse) {}
 }
 
 // -------------------------- Settle Position --------------------------
@@ -328,3 +330,23 @@ message MsgDonateToEcosystemFund {
 }
 
 message MsgDonateToEcosystemFundResponse {}
+
+// -------------------------- PegShift --------------------------
+
+message MsgPegShift {
+  string sender = 1;
+
+  string pair = 2 [
+    (gogoproto.customtype) =
+        "github.com/NibiruChain/nibiru/x/common/asset.Pair",
+    (gogoproto.nullable) = false
+  ];
+
+  string price_multiplier = 3 [
+    (gogoproto.customtype) = "github.com/cosmos/cosmos-sdk/types.Dec",
+    (gogoproto.moretags) = "yaml:\"price_multiplier\"",
+    (gogoproto.nullable) = false
+  ];
+}
+
+message MsgPegShiftResponse {}

@@ -282,3 +282,37 @@ func (m MsgPartialClose) GetSigners() []sdk.AccAddress {
 	}
 	return []sdk.AccAddress{signer}
 }
+
+// MsgPegShift
+
+func (m MsgPegShift) ValidateBasic() error {
+	if _, err := sdk.AccAddressFromBech32(m.Sender); err != nil {
+		return sdkerrors.Wrapf(errors.ErrInvalidAddress, "invalid sender address (%s)", err)
+	}
+
+	if err := m.Pair.Validate(); err != nil {
+		return err
+	}
+
+	if m.PriceMultiplier.IsNegative() {
+		return fmt.Errorf("invalid price multiplier: %s", m.PriceMultiplier.String())
+	}
+
+	return nil
+}
+
+func (m MsgPegShift) Route() string { return "perp" }
+
+func (m MsgPegShift) Type() string { return "peg_shift" }
+
+func (m MsgPegShift) GetSignBytes() []byte {
+	return sdk.MustSortJSON(ModuleCdc.MustMarshalJSON(&m))
+}
+
+func (m MsgPegShift) GetSigners() []sdk.AccAddress {
+	signer, err := sdk.AccAddressFromBech32(m.Sender)
+	if err != nil {
+		panic(err)
+	}
+	return []sdk.AccAddress{signer}
+}

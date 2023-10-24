@@ -211,13 +211,12 @@ func (s *TestSuitePerpExecutor) DoClosePositionTest(pair asset.Pair) error {
 }
 
 func (s *TestSuitePerpExecutor) DoPegShiftTest(pair asset.Pair) error {
-	contractAddr := s.contractPerp
 	cwMsg := &bindings.PegShift{
 		Pair:    pair.String(),
 		PegMult: sdk.NewDec(420),
 	}
 
-	err := s.exec.PegShift(cwMsg, contractAddr, s.ctx)
+	err := s.exec.PegShift(cwMsg, s.ctx)
 	return err
 }
 
@@ -300,8 +299,7 @@ func (s *TestSuitePerpExecutor) TestSadPaths_Nil() {
 	_, err = s.exec.ClosePosition(nil, nil, s.ctx)
 	s.Error(err)
 
-	err = s.exec.PegShift(
-		nil, sdk.AccAddress([]byte("contract")), s.ctx)
+	err = s.exec.PegShift(nil, s.ctx)
 	s.Error(err)
 
 	err = s.exec.DepthShift(nil, s.ctx)

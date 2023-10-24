@@ -86,7 +86,7 @@ func (messenger *CustomMessenger) DispatchMsg(
 				return events, data, err
 			}
 			cwMsg := contractExecuteMsg.ExecuteMsg.PegShift
-			err = messenger.Perp.PegShift(cwMsg, contractAddr, ctx)
+			err = messenger.Perp.PegShift(cwMsg, ctx)
 			return events, data, err
 		case contractExecuteMsg.ExecuteMsg.DepthShift != nil:
 			if err := messenger.Sudo.CheckPermissions(contractAddr, ctx); err != nil {
