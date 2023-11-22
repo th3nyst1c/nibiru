@@ -289,6 +289,25 @@ add_genesis_param '.app_state.oracle.exchange_rates[0].exchange_rate = "'"$price
 add_genesis_param '.app_state.oracle.exchange_rates[1].pair = "ueth:unusd"'
 add_genesis_param '.app_state.oracle.exchange_rates[1].exchange_rate = "'"$price_eth"'"'
 
+# add perp shifter contract to genmsg and instantiate
+shifter_contract_base64=$(openssl base64 -in ./wasmbinding/wasmbin/shifter.wasm)
+add_genesis_param '.app_state.genmsg.messages[0]["@type"] = "/cosmwasm.wasm.v1.MsgStoreCode"'
+add_genesis_param '.app_state.genmsg.messages[0].sender = "'"$val_address"'"'
+add_genesis_param '.app_state.genmsg.messages[0].wasm_byte_code = "'"$shifter_contract_base64"'"'
+add_genesis_param '.app_state.genmsg.messages[0].instantiate_permission = null'
+
+add_genesis_param '.app_state.genmsg.messages[1]["@type"] = "/cosmwasm.wasm.v1.MsgInstantiateContract2"'
+add_genesis_param '.app_state.genmsg.messages[1].sender = "'"$val_address"'"'
+add_genesis_param '.app_state.genmsg.messages[1].admin = "'"$val_address"'"'
+add_genesis_param '.app_state.genmsg.messages[1].code_id = "1"'
+add_genesis_param '.app_state.genmsg.messages[1].label = "perp shifter"'
+add_genesis_param '.app_state.genmsg.messages[1].msg.admin = "'"$val_address"'"'
+add_genesis_param '.app_state.genmsg.messages[1].salt = "cmVwZWdnZXI="'
+
+# set perp shifter contract as sudoer
+add_genesis_param '.app_state.sudo.sudoers.contracts[0] = "'"nibi1z48fg3mlsvfm44u32z8ws27glwzslqv57jtlxywwq79mwyfrp7uq30nx0q"'"'
+
+
 # Start the network
 echo_info "Starting $CHAIN_ID in $CHAIN_DIR..."
 $BINARY start --home "$CHAIN_DIR" --pruning nothing
