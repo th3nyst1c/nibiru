@@ -89,17 +89,15 @@ func (k Keeper) AllocatePolynomialInflation(
 		return sdk.Coin{}, sdk.Coin{}, sdk.Coin{}, err
 	}
 
-	if err := ctx.EventManager().EmitTypedEvents(
+	err = ctx.EventManager().EmitTypedEvents(
 		&types.InflationDistributionEvent{
 			StakingRewards:   staking,
 			StrategicReserve: strategic,
 			CommunityPool:    community,
 		},
-	); err != nil {
-		return sdk.Coin{}, sdk.Coin{}, sdk.Coin{}, err
-	}
+	)
 
-	return staking, strategic, community, nil
+	return staking, strategic, community, err
 }
 
 // GetAllocationProportion calculates the proportion of coins that is to be
